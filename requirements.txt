@@ -1,0 +1,32 @@
+# Core
+python-dotenv>=1.0.1
+pydantic>=2.7
+pydantic-settings>=2.4
+typer>=0.12
+rich>=13.7
+numpy>=1.26
+tenacity>=8.2.0
+PyYAML>=6.0
+
+# HTTP API
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# PDF -> images
+pymupdf>=1.24.9
+Pillow>=10.3
+
+# Vector store
+faiss-cpu>=1.8.0
+
+# LangChain / LangGraph
+langchain>=0.3.0
+langchain-community>=0.3.0
+langgraph>=0.2.34
+
+# Cohere
+cohere>=5.20.0
+
+# Optional: OpenAI (placeholder)
+openai>=1.45.0

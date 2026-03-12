@@ -1,0 +1,36 @@
+{
+  "rules": [
+    {
+      "id": "FMT-HEADINGS",
+      "name": "All page headers",
+      "query": "All Headings, Ignore Tables",
+      "description": "All headers are visually complete with NO misprints, cut off words, errant spacing, or visual deformations. Use the red center guideline to HELP check if something looks centered by confirming the line bisects each line through the middle clearly.",
+      "acceptance_criteria": "Headers are aligned and visually complete. No words are cut off or misprinted or deformed. No logos or headings are misaligned along the left hand side or the red center guideline.",
+      "severity": "High"
+    },
+    {
+      "id": "RND-GLOBAL",
+      "name": "All Tables and Charts,",
+      "query": "All tables, All charts, ignore footnotes",
+      "description": "Confirm all amounts are rounded to whole dollar. No Cents are used, no decimal values/numbers. Ignore Percentages, these can use decimal values.",
+      "acceptance_criteria": "No decimal numbers are used on dollar amounts or dollar numbers. These must be whole numbers. Ignore percentages.",
+      "severity": "High"
+    },
+    {
+      "id": "FMT-TABLES",
+      "name": "All tables",
+      "query": "All Tables, Ignore Headers",
+      "description": "All tables/columns are visually aligned and have the same font size. No words are cut off or misprinted",
+      "acceptance_criteria": "Tables/columns are aligned and visually uniform. Nothing cut off or misprinted.",
+      "severity": "High"
+    },
+    {
+      "id": "FMT-DOLLAR-SIGNS",
+      "name": "All tables",
+      "query": "All Tables, Ignore Headers",
+      "description": "Dollar signs ($) appear on the first dollar amount line in the table and the last line. Make note of the locaton of interior dollar signs, but do not factor them into the validation.",
+      "acceptance_criteria": "Dollar signs should appear on the first dollar amount line in the table and the final line. Ignore percentages.",
+      "severity": "High"
+    }
+  ]
+}

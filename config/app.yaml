@@ -1,0 +1,41 @@
+# Global app configuration
+app:
+  project_name: "rag-vision-pipeline"
+  env_file: ".env"
+
+paths:
+  uploads_dir: "data/uploads"
+  indexes_dir: "data/indexes"
+  reports_dir: "data/reports"
+
+pdf:
+  dpi: 300
+  image_format: "png"
+
+# Deprecated / Unused
+embedding:
+  provider: "none"
+  model_id: ""
+  output_dimension: 0
+  embedding_type: "float"
+  batch_size: 32
+  use_inputs_object: false
+
+# Deprecated / Unused
+retrieval:
+  top_k: 6
+  metric: "cosine"
+
+vision:
+  provider: "openai"
+  model_id: "gpt-5.2"
+  max_images_per_request: 10
+  temperature: 0.1
+  seed: 42
+  max_completion_tokens: 1600
+  image_detail: "high"
+  concurrent_requests: 12
+  global_max_concurrent: 24
+
+report:
+  include_thumbnails: false
