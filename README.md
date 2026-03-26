@@ -1,10 +1,12 @@
 # Petra Vision API
 
-A FastAPI service to upload a PDF and inspect what `pdfplumber` can extract from it, page by page, including raw text and detected tables.
+A FastAPI service to upload a PDF, extract its contents with `pdfplumber`, and keep a real analysis stage built from that extracted content and the selected validation rules.
 
-- **Extracted Text**
-- **Detected Tables**
-- **Per-page Character Count**
+The same run can be reviewed in the UI through tabs that separate the process into three views:
+
+- **Original PDF**
+- **Extracted Text and Tables**
+- **Analysis Derived From the Extraction**
 
 ---
 
@@ -49,6 +51,7 @@ If `DATABASE_URL` is set, it takes precedence over the derived database settings
    Then use the versioned API under `/api/v1`.
    Main extraction route: `POST /api/v1/validations` with `multipart/form-data`:
    - field `pdf`: your PDF file
+   - field `rules_json`: selected validation rules sent from the UI
 
 5. **Run with Docker Compose**
    docker compose up --build
@@ -80,15 +83,46 @@ The UI files are organized under:
 - `src/ui/templates/`
 - `src/ui/static/`
 
+When enabled, the UI presents the workflow in tabs so the same uploaded document can be reviewed as one continuous process:
+
+- `Original PDF`
+  - inspect the uploaded source document directly
+- `Extracted Text`
+  - review the page-by-page text and tables recovered by `pdfplumber`
+- `Analysis`
+  - inspect the analysis produced from the extracted text and tables, including rule assessments and page observations
+
 ---
 
 ## Output format
 
-The pipeline returns results grouped by **page**, with extracted text and normalized tables:
+The pipeline returns results grouped by **page**, and it also returns a dedicated analysis section built from the extracted text and tables. The UI surfaces these parts in separate tabs so the original PDF, the extraction, and the analysis can be compared side by side during the same review:
 
 {
   "document_id": "sample_20260326T140100",
   "page_count": 2,
+  "source_filename": "sample.pdf",
+  "source_pdf_url": "/public/uploads/originals/sample_abc123.pdf",
+  "analysis": {
+    "overview": [
+      { "label": "Pages", "value": "2", "detail": "Total pages processed from the PDF." },
+      { "label": "Selected Rules", "value": "3", "detail": "Rules enabled for this analysis run." }
+    ],
+    "rule_assessments": [
+      {
+        "rule_id": "FMT-HEADINGS",
+        "rule_name": "All page headers",
+        "matched_pages": [1],
+        "notes": ["Keyword overlap found on page(s): 1."]
+      }
+    ],
+    "page_observations": [
+      {
+        "page": 1,
+        "observations": ["Starts with: Statement of Financial Position", "1 table(s) detected."]
+      }
+    ]
+  },
   "pages": [
     {
       "page": 1,
@@ -110,7 +144,7 @@ The pipeline returns results grouped by **page**, with extracted text and normal
 ## Architecture
 
 - **API**: FastAPI routers under `/api/v1`
-- **Pipeline**: PDF extraction lives in `src/pipeline/`
+- **Pipeline**: PDF extraction and derived analysis live in `src/pipeline/`
 - **Services**: business orchestration lives in `src/services/`
 - **Providers**: storage integrations live in `src/providers/`
 - **Schemas**: request and response contracts live in `src/schemas/`
@@ -131,7 +165,8 @@ The pipeline returns results grouped by **page**, with extracted text and normal
 
 ## Notes
 
-- This service is focused on local PDF extraction with pdfplumber.
+- This service extracts PDF content with `pdfplumber` and uses that extracted material as the input to a separate analysis stage.
+- The UI is designed to expose the process in tabs so operators can review the source PDF, the extracted output, and the resulting analysis independently.
 - Ensure you have permission to process the uploaded documents.
 
 ---
