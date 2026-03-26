@@ -1,13 +1,10 @@
 # Petra Vision API
 
-A FastAPI microservice to **upload and validate PDF financial statements**, render each page as an image, and evaluate configurable rules with **OpenAI Vision**, returning **strict JSON** results per page and per rule.
+A FastAPI service to upload a PDF and inspect what `pdfplumber` can extract from it, page by page, including raw text and detected tables.
 
-- **Rule Name**
-- **Pass or Fail**
-- **Reasoning**
-- **Citation** (page numbers / evidence snippets)
-
-Rules live in `rules/*.json`, and the system prompt lives in `config/system_prompt.md`.
+- **Extracted Text**
+- **Detected Tables**
+- **Per-page Character Count**
 
 ---
 
@@ -26,9 +23,7 @@ Rules live in `rules/*.json`, and the system prompt lives in `config/system_prom
    # Install dependencies
    python -m pip install -r requirements.txt
 2. **Configure**
-   - Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
-   - Put your rules into `rules/rules.json` (see the example).
-   - Edit `config/system_prompt.md` with your rules validation preamble.
+   - Copy `.env.example` to `.env`.
    - Optional tunables in `config/app.yaml`.
 
 ### Storage and database modes
@@ -48,13 +43,12 @@ The service supports two common deployment styles:
 If `DATABASE_URL` is set, it takes precedence over the derived database settings.
 
 3. **Run CLI (one-off PDF validation)**
-   python -m src.main validate --pdf ./tests/sample.pdf --rules ./rules/rules.json --out ./data/reports/report.json
-   4. **Run API**
+   python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
+4. **Run API**
    python -m uvicorn src.main:app --reload --port 8000
-      Then use the versioned API under `/api/v1`.
-      Main validation route: `POST /api/v1/validations` with `multipart/form-data`:
+   Then use the versioned API under `/api/v1`.
+   Main extraction route: `POST /api/v1/validations` with `multipart/form-data`:
    - field `pdf`: your PDF file
-   - field `rules_json` (optional): raw JSON string of rules; if omitted, file `rules/rules.json` is used.
 
 5. **Run with Docker Compose**
    docker compose up --build
@@ -88,54 +82,37 @@ The UI files are organized under:
 
 ---
 
-## Rules JSON shape
-
-You can supply **any number of rules**. The pipeline evaluates every page against every rule.
-
-{
-  "rules": [
-    {
-      "id": "rule_bs_current_assets_present",
-      "name": "Balance sheet shows current assets",
-      "description": "Verify the presence of a line item called 'Current assets' or the equivalent on the balance sheet.",
-      "acceptance_criteria": "The image shows a balance sheet section with a 'Current assets' or equivalent heading.",
-      "severity": "medium"
-    }
-  ]
-}- You can remove or add rules freely without touching code.
-
----
-
 ## Output format
 
-The pipeline returns results grouped by **page**, with each page containing rule evaluations:
+The pipeline returns results grouped by **page**, with extracted text and normalized tables:
 
 {
-  "document_id": "2025-10-29T12-30-15-123Z_ABC123",
+  "document_id": "sample_20260326T140100",
+  "page_count": 2,
   "pages": [
     {
-      "page": 2,
-      "image_data_url": "data:image/png;base64,...",
-      "rules": [
+      "page": 1,
+      "text": "Statement of Financial Position ...",
+      "char_count": 4210,
+      "tables": [
         {
-          "rule_id": "rule_bs_current_assets_present",
-          "rule_name": "Balance sheet shows current assets",
-          "status": "pass",
-          "reasoning": "The page includes a section labeled 'Current assets' with line items and totals.",
-          "citations": [{ "page": 2, "evidence": "Balance Sheet - Current assets" }],
-          "preview_images": [{ "page": 2, "image_data_url": "data:image/png;base64,..." }]
+          "index": 1,
+          "rows": [
+            ["Assets", "2024", "2023"],
+            ["Cash", "100", "90"]
+          ]
         }
       ]
     }
   ]
-}---
+}
 
 ## Architecture
 
 - **API**: FastAPI routers under `/api/v1`
-- **Pipeline**: PDF rendering and rule evaluation live in `src/pipeline/`
+- **Pipeline**: PDF extraction lives in `src/pipeline/`
 - **Services**: business orchestration lives in `src/services/`
-- **Providers**: OpenAI and storage integrations live in `src/providers/`
+- **Providers**: storage integrations live in `src/providers/`
 - **Schemas**: request and response contracts live in `src/schemas/`
 - **Models**: SQLAlchemy models live in `src/models/`
 
@@ -144,25 +121,17 @@ The pipeline returns results grouped by **page**, with each page containing rule
 ## Configuration
 
 - `config/app.yaml` controls:
-  - vision model (`gpt-4o`), temperature/seed
-  - **`concurrent_requests`**: max parallel API calls (default: 4)
-  - image rendering DPI (default: 300)
-- `config/system_prompt.md` is **injected as a system message**. You can fully rewrite it without code changes.
-
-### Vision provider configuration
-
-vision:
-  provider: "openai"
-  model_id: "gpt-4o"
-  temperature: 0.1
-  seed: 42
-  max_tokens: 1200
-  image_detail: "high"
-  concurrent_requests: 4
+  - PDF rendering DPI
+  - image format
+  - report toggles
+- Environment variables control:
+  - database backend selection
+  - storage backend selection
+  - UI enable/disable behavior
 
 ## Notes
 
-- This service is structured as a small FastAPI microservice with a dedicated validation pipeline.
+- This service is focused on local PDF extraction with pdfplumber.
 - Ensure you have permission to process the uploaded documents.
 
 ---

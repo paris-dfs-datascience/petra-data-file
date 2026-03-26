@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.api.errors import register_exception_handlers
 from src.api.middleware import register_middleware
-from src.api.routers import auth, documents, feedback, health, rules, validations
+from src.api.routers import auth, documents, health, rules, validations
 from src.core.config import get_settings, load_app_yaml, project_paths
 from src.core.logging import configure_logging
 from src.services.validation_service import ValidationService
@@ -31,7 +31,6 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix=settings.API_PREFIX)
     app.include_router(validations.router, prefix=settings.API_PREFIX)
     app.include_router(rules.router, prefix=settings.API_PREFIX)
-    app.include_router(feedback.router, prefix=settings.API_PREFIX)
 
     public_dir = Path(settings.PUBLIC_DIR)
     public_dir.mkdir(parents=True, exist_ok=True)
@@ -64,18 +63,17 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def _run_pipeline(pdf_path: str, rules_json_path: str | None = None, rules_json_str: str | None = None) -> dict:
+def _run_pipeline(pdf_path: str) -> dict:
     service = ValidationService()
-    return service.validate_document(pdf_path=pdf_path, rules_json_path=rules_json_path, rules_json_str=rules_json_str)
+    return service.validate_document(pdf_path=pdf_path)
 
 
 @cli.command("validate")
 def cli_validate(
     pdf: str = typer.Option(..., help="Path to the PDF"),
-    rules: str | None = typer.Option(None, help="Path to rules JSON. Defaults to rules/rules.json"),
-    out: str | None = typer.Option(None, help="Where to write the results JSON. Default under data/reports"),
+    out: str | None = typer.Option(None, help="Where to write the extraction JSON. Default under data/reports"),
 ) -> None:
-    data = _run_pipeline(pdf_path=pdf, rules_json_path=rules)
+    data = _run_pipeline(pdf_path=pdf)
     if out is None:
         app_cfg = load_app_yaml()
         paths = project_paths(app_cfg)

@@ -31,14 +31,14 @@
             <div class="grid gap-6 px-6 py-8 lg:grid-cols-[1.6fr_1fr] lg:px-10">
                 <div>
                     <p class="mb-3 inline-flex rounded-full bg-accentSoft px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-                        Visual Audit Workspace
+                        PDF Extraction Workspace
                     </p>
                     <h1 class="max-w-3xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
                         {{ app_name }}
                     </h1>
                     <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                        Upload a financial PDF, validate it against the configured visual rules, inspect page-level findings,
-                        and send reviewer feedback. The UI can be disabled later without affecting the API.
+                        Upload a PDF, inspect the extracted text and tables page by page, and verify how much structured content
+                        pdfplumber can recover from the document.
                     </p>
                 </div>
                 <div class="grid gap-3 rounded-3xl bg-slate-950 px-5 py-5 text-sm text-slate-200">
@@ -63,25 +63,18 @@
                 <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-panel">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold text-slate-950">Configured Rules</h2>
-                            <p class="mt-1 text-sm text-slate-500">Loaded from the active rules file.</p>
+                            <h2 class="text-lg font-semibold text-slate-950">Validation Rules</h2>
+                            <p class="mt-1 text-sm text-slate-500">Enable the rules you want to include in the analysis.</p>
                         </div>
-                        <button id="refresh-rules" class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
-                            Refresh
-                        </button>
+                        <button id="refresh-rules" class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">Refresh</button>
+                    </div>
+                    <div class="mt-5 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                        <p class="text-sm text-slate-500"><span id="selected-rule-count" class="font-semibold text-slate-900">0</span> rule(s) selected</p>
+                        <button id="select-all-rules" class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Select All</button>
                     </div>
                     <div id="rules-list" class="mt-5 space-y-3">
                         <p class="text-sm text-slate-500">Loading rules...</p>
                     </div>
-                </article>
-
-                <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-panel">
-                    <h2 class="text-lg font-semibold text-slate-950">Feedback</h2>
-                    <p class="mt-1 text-sm text-slate-500">Reviewers can confirm or flag individual rule results.</p>
-                    <button id="send-feedback" class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                        Send Feedback
-                    </button>
-                    <p id="feedback-status" class="mt-3 text-sm text-slate-500"></p>
                 </article>
             </aside>
 
@@ -89,10 +82,10 @@
                 <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-panel">
                     <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <h2 class="text-lg font-semibold text-slate-950">Validate Document</h2>
-                            <p class="mt-1 text-sm text-slate-500">Drop a PDF or choose a file to run the visual audit pipeline.</p>
+                            <h2 class="text-lg font-semibold text-slate-950">Extract PDF Content</h2>
+                            <p class="mt-1 text-sm text-slate-500">Drop a PDF or choose a file to inspect extracted text and tables.</p>
                         </div>
-                        <div class="text-sm text-slate-500">Results render page by page below.</div>
+                        <div class="text-sm text-slate-500">Use the tabs below to compare source, extraction, and analysis.</div>
                     </div>
 
                     <label id="drop-zone" class="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center transition hover:border-teal-500 hover:bg-teal-50">
@@ -103,7 +96,7 @@
                             </svg>
                         </div>
                         <h3 class="mt-4 text-base font-semibold text-slate-900">Drop PDF here</h3>
-                        <p class="mt-2 max-w-md text-sm text-slate-500">or click to select a file. The uploaded PDF is validated against the active rule set.</p>
+                        <p class="mt-2 max-w-md text-sm text-slate-500">or click to select a file. The uploaded PDF is parsed locally with pdfplumber.</p>
                         <span class="mt-5 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white">Choose PDF</span>
                     </label>
 
@@ -113,12 +106,38 @@
                     </div>
                 </article>
 
-                <div id="results" class="space-y-6">
-                    <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center shadow-panel">
-                        <h2 class="text-lg font-semibold text-slate-900">No validation yet</h2>
-                        <p class="mt-2 text-sm text-slate-500">Upload a PDF to inspect results, citations, and feedback controls.</p>
-                    </article>
-                </div>
+                <section class="rounded-[1.75rem] border border-slate-200 bg-white shadow-panel">
+                    <div class="flex flex-wrap gap-2 border-b border-slate-200 px-5 py-4">
+                        <button data-tab="source" class="tab-trigger rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Original PDF</button>
+                        <button data-tab="extracted" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Extracted Text</button>
+                        <button data-tab="analysis" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Analysis</button>
+                    </div>
+
+                    <div id="tab-source" class="tab-panel p-5">
+                        <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
+                            <h2 class="text-lg font-semibold text-slate-900">No PDF loaded</h2>
+                            <p class="mt-2 text-sm text-slate-500">Upload a PDF to preview the original document here.</p>
+                        </article>
+                    </div>
+
+                    <div id="tab-extracted" class="tab-panel hidden p-5">
+                        <div id="results" class="space-y-6">
+                            <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
+                                <h2 class="text-lg font-semibold text-slate-900">No extraction yet</h2>
+                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to inspect extracted text and table structures.</p>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div id="tab-analysis" class="tab-panel hidden p-5">
+                        <div id="analysis-panel" class="space-y-6">
+                            <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
+                                <h2 class="text-lg font-semibold text-slate-900">No analysis yet</h2>
+                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to see analysis derived from the extracted content.</p>
+                            </article>
+                        </div>
+                    </div>
+                </section>
             </section>
         </section>
     </main>
