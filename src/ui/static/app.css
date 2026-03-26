@@ -1,0 +1,15 @@
+body {
+    font-feature-settings: "ss01" 1, "cv01" 1;
+}
+
+.drop-active {
+    border-color: rgb(13 148 136) !important;
+    background: rgb(240 253 250) !important;
+}
+
+.result-card {
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1.5rem;
+    background: white;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}

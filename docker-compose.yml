@@ -1,0 +1,62 @@
+services:
+  petra_vision_api:
+    build:
+      context: .
+      dockerfile: docker/AppDevDockerfile
+    container_name: petra_vision_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./rules:/app/rules
+      - ./tests:/app/tests
+      - ./petra-logo.svg:/app/petra-logo.svg
+    env_file:
+      - .env
+    environment:
+      DATABASE_BACKEND: sqlite
+      SQLITE_PATH: /app/data/petra.db
+      STORAGE_BACKEND: local
+      ENABLE_UI: "true"
+      PUBLIC_DIR: /app/public
+      LOCAL_WORKDIR: /app/data/tmp
+      APP_ENV: development
+    depends_on:
+      - petra_vision_postgres
+      - petra_vision_minio
+    restart: unless-stopped
+    networks:
+      - petra_vision_network
+
+  petra_vision_postgres:
+    image: postgres:16-alpine
+    container_name: petra_vision_postgres
+    environment:
+      POSTGRES_DB: petra
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - petra_vision_network
+
+  petra_vision_minio:
+    image: minio/minio:latest
+    container_name: petra_vision_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: unless-stopped
+    networks:
+      - petra_vision_network
+
+networks:
+  petra_vision_network:
+    driver: bridge
+    name: petra_vision_network

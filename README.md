@@ -1,15 +1,13 @@
-# RAG Vision Pipeline (OpenAI Vision)
+# Petra Vision API
 
-An MVP pipeline to **upload a PDF of financial statements**, render each page as an image, and **validate rules** using **OpenAI Vision** returning **strict JSON** per rule:
+A FastAPI microservice to **upload and validate PDF financial statements**, render each page as an image, and evaluate configurable rules with **OpenAI Vision**, returning **strict JSON** results per page and per rule.
 
 - **Rule Name**
 - **Pass or Fail**
 - **Reasoning**
 - **Citation** (page numbers / evidence snippets)
 
-Everything is modular: rules live in `rules/*.json`, the system prompt is in `config/system_prompt.md`.
-
-> Uses **LangGraph** to orchestrate: PDF → images → vision eval (all pages) → aggregate report.
+Rules live in `rules/*.json`, and the system prompt lives in `config/system_prompt.md`.
 
 ---
 
@@ -27,19 +25,66 @@ Everything is modular: rules live in `rules/*.json`, the system prompt is in `co
    
    # Install dependencies
    python -m pip install -r requirements.txt
-   2. **Configure**
+2. **Configure**
    - Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
    - Put your rules into `rules/rules.json` (see the example).
    - Edit `config/system_prompt.md` with your rules validation preamble.
    - Optional tunables in `config/app.yaml`.
 
+### Storage and database modes
+
+The service supports two common deployment styles:
+
+- Local mode
+  - `DATABASE_BACKEND=sqlite`
+  - `STORAGE_BACKEND=local`
+  - uploaded files are persisted under `public/`
+  - public files are served under `/public/...`
+- Remote mode
+  - `DATABASE_BACKEND=postgresql`
+  - `STORAGE_BACKEND=minio` for MinIO or any S3-compatible endpoint
+  - `STORAGE_BACKEND=azure_blob` for Azure Blob Storage
+
+If `DATABASE_URL` is set, it takes precedence over the derived database settings.
+
 3. **Run CLI (one-off PDF validation)**
-   python -m src.main cli validate --pdf ./tests/sample.pdf --rules ./rules/rules.json --out ./data/reports/report.json
+   python -m src.main validate --pdf ./tests/sample.pdf --rules ./rules/rules.json --out ./data/reports/report.json
    4. **Run API**
    python -m uvicorn src.main:app --reload --port 8000
-      Then `POST /validate` with a `multipart/form-data` upload:
+      Then use the versioned API under `/api/v1`.
+      Main validation route: `POST /api/v1/validations` with `multipart/form-data`:
    - field `pdf`: your PDF file
    - field `rules_json` (optional): raw JSON string of rules; if omitted, file `rules/rules.json` is used.
+
+5. **Run with Docker Compose**
+   docker compose up --build
+
+The compose file starts three services:
+
+- `petra_vision_api`
+- `petra_vision_postgres`
+- `petra_vision_minio`
+
+The application is intentionally configured to use the simple local mode inside the container:
+
+- `DATABASE_BACKEND=sqlite`
+- `STORAGE_BACKEND=local`
+
+PostgreSQL and MinIO are available on the Docker network for future switching, but they are not used by default.
+
+## Optional UI
+
+The service can expose a lightweight built-in UI at `/`.
+
+- `ENABLE_UI=true`
+  - `/` renders the Tailwind-based UI
+- `ENABLE_UI=false`
+  - `/` returns the JSON service descriptor instead
+
+The UI files are organized under:
+
+- `src/ui/templates/`
+- `src/ui/static/`
 
 ---
 
@@ -87,10 +132,12 @@ The pipeline returns results grouped by **page**, with each page containing rule
 
 ## Architecture
 
-- **PDF → images**: `PyMuPDF` renders each page at configurable DPI (default 300) → `data/uploads/<doc_id>/pages/*.png`
-- **Vision evaluation**: For each page, evaluate **all rules** against that single page. Each rule evaluation is a separate OpenAI API call.
-- **Concurrency**: Uses a bounded thread pool (default 4 concurrent requests, configurable via `vision.concurrent_requests` in `config/app.yaml`) to parallelize API calls while respecting rate limits.
-- **LangGraph** orchestrates the stages into a reproducible graph.
+- **API**: FastAPI routers under `/api/v1`
+- **Pipeline**: PDF rendering and rule evaluation live in `src/pipeline/`
+- **Services**: business orchestration lives in `src/services/`
+- **Providers**: OpenAI and storage integrations live in `src/providers/`
+- **Schemas**: request and response contracts live in `src/schemas/`
+- **Models**: SQLAlchemy models live in `src/models/`
 
 ---
 
@@ -111,11 +158,11 @@ vision:
   seed: 42
   max_tokens: 1200
   image_detail: "high"
-  concurrent_requests: 4  # Max parallel API calls---
+  concurrent_requests: 4
 
 ## Notes
 
-- This repo is an MVP—ideal for internal POCs with financial statements. You might enhance it with caching, persistence across runs, Streamlit/Gradio UI, and tracing with LangSmith.
+- This service is structured as a small FastAPI microservice with a dedicated validation pipeline.
 - Ensure you have permission to process the uploaded documents.
 
 ---
