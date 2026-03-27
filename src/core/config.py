@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+
 import yaml
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +17,9 @@ class PathsConfig(BaseModel):
 class PdfConfig(BaseModel):
     dpi: int = 300
     image_format: str = "png"
+    text_layout: bool = True
+    text_x_density: float = 7.25
+    text_y_density: float = 13.0
 
 
 class VisionConfig(BaseModel):
@@ -51,9 +55,16 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     ENABLE_UI: bool = True
 
-    OPENAI_API_KEY: str | None = None
+    OPENAI_API_KEY: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENAI_API_KEY", "OPEN_AI_API_KEY"),
+    )
     COHERE_API_KEY: str | None = None
     VISION_PROVIDER: str = "openai"
+    OPENAI_TEXT_MODEL: str = "gpt-5.4-mini"
+    OPENAI_VISION_MODEL: str = "gpt-5-mini"
+    OPENAI_TEXT_TEMPERATURE: float | None = None
+    OPENAI_TEXT_MAX_COMPLETION_TOKENS: int | None = None
 
     DATABASE_BACKEND: str = "sqlite"
     DATABASE_URL: str | None = None

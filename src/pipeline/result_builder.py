@@ -26,12 +26,54 @@ def _keywords_from_rule(rule: dict) -> list[str]:
     return seen[:12]
 
 
-def build_document_analysis(pages: list[dict], selected_rules: list[dict] | None = None) -> dict:
+def _fallback_rule_assessment(rule: dict, pages: list[dict]) -> dict:
+    keywords = _keywords_from_rule(rule)
+    matched_pages: list[int] = []
+    notes: list[str] = []
+    for page in pages:
+        page_text = _normalize(page.get("text", ""))
+        if any(keyword in page_text for keyword in keywords):
+            matched_pages.append(page.get("page", 0))
+    if matched_pages:
+        notes.append(f"Keyword overlap found on page(s): {', '.join(str(page) for page in matched_pages)}.")
+    else:
+        notes.append("No obvious keyword overlap found in extracted text.")
+    if keywords:
+        notes.append(f"Keywords used: {', '.join(keywords[:6])}.")
+    return {
+        "rule_id": rule.get("id", ""),
+        "rule_name": rule.get("name", rule.get("id", "")),
+        "analysis_type": rule.get("analysis_type", "text"),
+        "execution_status": "completed",
+        "verdict": "needs_review",
+        "summary": "Fallback heuristic analysis based on keyword overlap.",
+        "reasoning": "No LLM assessment was supplied, so the result was derived from keyword overlap in extracted text.",
+        "findings": [],
+        "citations": [],
+        "matched_pages": matched_pages,
+        "notes": notes,
+    }
+
+
+def build_document_analysis(
+    pages: list[dict],
+    selected_rules: list[dict] | None = None,
+    rule_assessments: list[dict] | None = None,
+    text_page_results: list[dict] | None = None,
+) -> dict:
     total_chars = sum(page.get("char_count", 0) for page in pages)
     total_tables = sum(len(page.get("tables", [])) for page in pages)
     pages_with_text = sum(1 for page in pages if (page.get("text") or "").strip())
     pages_with_tables = sum(1 for page in pages if page.get("tables"))
     selected_rules = selected_rules or []
+    text_rule_count = sum(1 for rule in selected_rules if rule.get("analysis_type", "text") == "text")
+    vision_rule_count = sum(1 for rule in selected_rules if rule.get("analysis_type", "text") == "vision")
+    rule_assessments = rule_assessments or [_fallback_rule_assessment(rule, pages) for rule in selected_rules]
+    completed_text_rule_count = sum(
+        1
+        for item in rule_assessments
+        if item.get("analysis_type") == "text" and item.get("execution_status") == "completed"
+    )
 
     overview = [
         {"label": "Pages", "value": str(len(pages)), "detail": "Total pages processed from the PDF."},
@@ -40,31 +82,10 @@ def build_document_analysis(pages: list[dict], selected_rules: list[dict] | None
         {"label": "Total Characters", "value": str(total_chars), "detail": "Combined extracted character count across all pages."},
         {"label": "Total Tables", "value": str(total_tables), "detail": "Combined number of extracted tables."},
         {"label": "Selected Rules", "value": str(len(selected_rules)), "detail": "Rules enabled for this analysis run."},
+        {"label": "Text Rules", "value": str(text_rule_count), "detail": "Rules intended for text/content analysis."},
+        {"label": "Vision Rules", "value": str(vision_rule_count), "detail": "Rules intended for image-based analysis."},
+        {"label": "Text Rules Completed", "value": str(completed_text_rule_count), "detail": "Text rules evaluated by the LLM in this run."},
     ]
-
-    rule_assessments = []
-    for rule in selected_rules:
-        keywords = _keywords_from_rule(rule)
-        matched_pages: list[int] = []
-        notes: list[str] = []
-        for page in pages:
-            page_text = _normalize(page.get("text", ""))
-            if any(keyword in page_text for keyword in keywords):
-                matched_pages.append(page.get("page", 0))
-        if matched_pages:
-            notes.append(f"Keyword overlap found on page(s): {', '.join(str(page) for page in matched_pages)}.")
-        else:
-            notes.append("No obvious keyword overlap found in extracted text.")
-        if keywords:
-            notes.append(f"Keywords used: {', '.join(keywords[:6])}.")
-        rule_assessments.append(
-            {
-                "rule_id": rule.get("id", ""),
-                "rule_name": rule.get("name", rule.get("id", "")),
-                "matched_pages": matched_pages,
-                "notes": notes,
-            }
-        )
 
     page_observations = []
     for page in pages:
@@ -88,7 +109,10 @@ def build_document_analysis(pages: list[dict], selected_rules: list[dict] | None
     return DocumentAnalysisSchema(
         overview=overview,
         selected_rule_count=len(selected_rules),
+        text_rule_count=text_rule_count,
+        vision_rule_count=vision_rule_count,
         rule_assessments=rule_assessments,
+        text_page_results=text_page_results or [],
         page_observations=page_observations,
     ).model_dump()
 
@@ -99,12 +123,19 @@ def build_document_result(
     source_filename: str | None = None,
     source_pdf_url: str | None = None,
     selected_rules: list[dict] | None = None,
+    rule_assessments: list[dict] | None = None,
+    text_page_results: list[dict] | None = None,
 ) -> dict:
     return DocumentValidationResponse(
         document_id=document_id,
         page_count=len(pages),
         source_filename=source_filename,
         source_pdf_url=source_pdf_url,
-        analysis=build_document_analysis(pages, selected_rules=selected_rules),
+        analysis=build_document_analysis(
+            pages,
+            selected_rules=selected_rules,
+            rule_assessments=rule_assessments,
+            text_page_results=text_page_results,
+        ),
         pages=pages,
     ).model_dump()

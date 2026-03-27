@@ -11,6 +11,9 @@ paths:
 pdf:
   dpi: 300
   image_format: "png"
+  text_layout: true
+  text_x_density: 7.25
+  text_y_density: 13.0
 
 # Deprecated / Unused
 embedding:

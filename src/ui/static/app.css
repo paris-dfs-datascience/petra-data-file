@@ -13,3 +13,26 @@ body {
     background: white;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
 }
+
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 1rem;
+    border-radius: 9999px;
+    border: 2px solid rgb(203 213 225);
+    border-top-color: rgb(15 118 110);
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+.is-busy {
+    opacity: 0.72;
+    pointer-events: none;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

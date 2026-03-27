@@ -37,8 +37,7 @@
                         {{ app_name }}
                     </h1>
                     <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                        Upload a PDF, inspect the extracted text and tables page by page, and verify how much structured content
-                        pdfplumber can recover from the document.
+                        Upload a PDF, inspect the extracted text page by page, and review text-analysis results as they arrive.
                     </p>
                 </div>
                 <div class="grid gap-3 rounded-3xl bg-slate-950 px-5 py-5 text-sm text-slate-200">
@@ -83,7 +82,7 @@
                     <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-950">Extract PDF Content</h2>
-                            <p class="mt-1 text-sm text-slate-500">Drop a PDF or choose a file to inspect extracted text and tables.</p>
+                            <p class="mt-1 text-sm text-slate-500">Drop a PDF or choose a file to inspect extracted text page by page.</p>
                         </div>
                         <div class="text-sm text-slate-500">Use the tabs below to compare source, extraction, and analysis.</div>
                     </div>
@@ -102,6 +101,7 @@
 
                     <div class="mt-5 flex flex-wrap items-center gap-3">
                         <span id="status-pill" class="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600">No document uploaded</span>
+                        <button id="stop-analysis" class="hidden rounded-full border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:bg-rose-50">Stop Analysis</button>
                         <span id="document-id" class="text-sm text-slate-500"></span>
                     </div>
                 </article>
@@ -110,7 +110,8 @@
                     <div class="flex flex-wrap gap-2 border-b border-slate-200 px-5 py-4">
                         <button data-tab="source" class="tab-trigger rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Original PDF</button>
                         <button data-tab="extracted" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Extracted Text</button>
-                        <button data-tab="analysis" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Analysis</button>
+                        <button data-tab="text-analysis" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Text Analysis Result</button>
+                        <button data-tab="visual-analysis" class="tab-trigger rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">Visual Analysis Result</button>
                     </div>
 
                     <div id="tab-source" class="tab-panel p-5">
@@ -124,16 +125,25 @@
                         <div id="results" class="space-y-6">
                             <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
                                 <h2 class="text-lg font-semibold text-slate-900">No extraction yet</h2>
-                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to inspect extracted text and table structures.</p>
+                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to inspect extracted page text.</p>
                             </article>
                         </div>
                     </div>
 
-                    <div id="tab-analysis" class="tab-panel hidden p-5">
-                        <div id="analysis-panel" class="space-y-6">
+                    <div id="tab-text-analysis" class="tab-panel hidden p-5">
+                        <div id="text-analysis-panel" class="space-y-6">
                             <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
-                                <h2 class="text-lg font-semibold text-slate-900">No analysis yet</h2>
-                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to see analysis derived from the extracted content.</p>
+                                <h2 class="text-lg font-semibold text-slate-900">No text analysis yet</h2>
+                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to see text/content rule results.</p>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div id="tab-visual-analysis" class="tab-panel hidden p-5">
+                        <div id="visual-analysis-panel" class="space-y-6">
+                            <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
+                                <h2 class="text-lg font-semibold text-slate-900">No visual analysis yet</h2>
+                                <p class="mt-2 text-sm text-slate-500">Upload a PDF to inspect visual-rule status.</p>
                             </article>
                         </div>
                     </div>

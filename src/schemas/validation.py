@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,17 +28,46 @@ class PageAnalysisSchema(BaseModel):
     observations: list[str] = Field(default_factory=list)
 
 
+class AnalysisCitationSchema(BaseModel):
+    page: int
+    evidence: str = ""
+
+
 class RuleAssessmentSchema(BaseModel):
     rule_id: str
     rule_name: str
+    analysis_type: Literal["text", "vision"] = "text"
+    execution_status: str = "completed"
+    verdict: str = "needs_review"
+    summary: str = ""
+    reasoning: str = ""
+    findings: list[str] = Field(default_factory=list)
+    citations: list[AnalysisCitationSchema] = Field(default_factory=list)
     matched_pages: list[int] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PageRuleAssessmentSchema(BaseModel):
+    page: int
+    rule_id: str
+    rule_name: str
+    analysis_type: Literal["text", "vision"] = "text"
+    execution_status: str = "completed"
+    verdict: str = "needs_review"
+    summary: str = ""
+    reasoning: str = ""
+    findings: list[str] = Field(default_factory=list)
+    citations: list[AnalysisCitationSchema] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
 
 class DocumentAnalysisSchema(BaseModel):
     overview: list[AnalysisMetricSchema] = Field(default_factory=list)
     selected_rule_count: int = 0
+    text_rule_count: int = 0
+    vision_rule_count: int = 0
     rule_assessments: list[RuleAssessmentSchema] = Field(default_factory=list)
+    text_page_results: list[PageRuleAssessmentSchema] = Field(default_factory=list)
     page_observations: list[PageAnalysisSchema] = Field(default_factory=list)
 
 
@@ -49,3 +78,13 @@ class DocumentValidationResponse(BaseModel):
     source_pdf_url: Optional[str] = None
     analysis: DocumentAnalysisSchema = Field(default_factory=DocumentAnalysisSchema)
     pages: list[PageExtractionSchema] = Field(default_factory=list)
+
+
+class ValidationJobResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str
+    progress_current: int = 0
+    progress_total: int = 0
+    error: str | None = None
+    result: DocumentValidationResponse | None = None

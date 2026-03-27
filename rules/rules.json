@@ -2,7 +2,8 @@
   "rules": [
     {
       "id": "FMT-HEADINGS",
-      "name": "All page headers",
+      "name": "Visual Header Quality",
+      "analysis_type": "vision",
       "query": "All Headings, Ignore Tables",
       "description": "All headers are visually complete with NO misprints, cut off words, errant spacing, or visual deformations. Use the red center guideline to HELP check if something looks centered by confirming the line bisects each line through the middle clearly.",
       "acceptance_criteria": "Headers are aligned and visually complete. No words are cut off or misprinted or deformed. No logos or headings are misaligned along the left hand side or the red center guideline.",
@@ -10,15 +11,17 @@
     },
     {
       "id": "RND-GLOBAL",
-      "name": "All Tables and Charts,",
+      "name": "Whole-Dollar Values Check",
+      "analysis_type": "text",
       "query": "All tables, All charts, ignore footnotes",
-      "description": "Confirm all amounts are rounded to whole dollar. No Cents are used, no decimal values/numbers. Ignore Percentages, these can use decimal values.",
-      "acceptance_criteria": "No decimal numbers are used on dollar amounts or dollar numbers. These must be whole numbers. Ignore percentages.",
+      "description": "Confirm all amounts shown inside tables or chart-like numeric blocks are rounded to whole dollars. No cents or decimal dollar values should appear. Ignore percentages. A single page may contain multiple separate tables.",
+      "acceptance_criteria": "No decimal numbers are used on dollar amounts or dollar figures presented in tables or chart-like numeric sections. These must be whole numbers. Ignore percentages.",
       "severity": "High"
     },
     {
       "id": "FMT-TABLES",
-      "name": "All tables",
+      "name": "Visual Table Alignment",
+      "analysis_type": "vision",
       "query": "All Tables, Ignore Headers",
       "description": "All tables/columns are visually aligned and have the same font size. No words are cut off or misprinted",
       "acceptance_criteria": "Tables/columns are aligned and visually uniform. Nothing cut off or misprinted.",
@@ -26,10 +29,29 @@
     },
     {
       "id": "FMT-DOLLAR-SIGNS",
-      "name": "All tables",
+      "name": "Dollar Sign Placement",
+      "analysis_type": "text",
       "query": "All Tables, Ignore Headers",
-      "description": "Dollar signs ($) appear on the first dollar amount line in the table and the last line. Make note of the locaton of interior dollar signs, but do not factor them into the validation.",
-      "acceptance_criteria": "Dollar signs should appear on the first dollar amount line in the table and the final line. Ignore percentages.",
+      "description": "Dollar signs ($) appear on the first dollar amount line in each relevant table and the last line of that table. A page may contain multiple tables. Make note of interior dollar signs, but do not factor them into the validation.",
+      "acceptance_criteria": "Dollar signs should appear on the first dollar amount line and the final line of each relevant table represented in the extracted page text. Ignore percentages.",
+      "severity": "High"
+    },
+    {
+      "id": "MATH-TABLE-CHECKS",
+      "name": "Arithmetic Consistency Check",
+      "analysis_type": "text",
+      "query": "Review numeric rows, subtotals, totals, and rollforwards in tables or structured numeric text.",
+      "description": "Check whether numeric relationships in tables or structured numeric sections appear mathematically correct. Verify additions, subtractions, subtotals, totals, and similar calculations when the necessary inputs are present in the extracted page text.",
+      "acceptance_criteria": "If the extracted text provides enough numeric evidence, totals and subtotals should reconcile correctly. Any apparent arithmetic mismatch should be reported with the relevant figures and page citation. If the evidence is incomplete, report needs_review rather than guessing.",
+      "severity": "High"
+    },
+    {
+      "id": "LANG-EN-GRAMMAR",
+      "name": "English Grammar and Spelling",
+      "analysis_type": "text",
+      "query": "Review the full page text for grammar, spelling, and wording quality. Report multiple distinct issues when present.",
+      "description": "Check whether the English wording on the page is grammatically correct, clearly written, and free of obvious spelling mistakes, malformed words, broken phrasing, incorrect singular/plural usage, or possessive/wording problems. Review the full page text, not just the first issue found. Ignore numeric formatting issues unless they directly affect the wording.",
+      "acceptance_criteria": "Narrative English text should be grammatically correct, coherent, and free of obvious spelling or wording problems. If multiple distinct issues exist on the page, report them separately. Each finding should identify the problematic phrase and state the correct or expected wording, with page citation.",
       "severity": "High"
     }
   ]
