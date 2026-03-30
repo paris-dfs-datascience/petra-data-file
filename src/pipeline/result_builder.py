@@ -60,6 +60,7 @@ def build_document_analysis(
     selected_rules: list[dict] | None = None,
     rule_assessments: list[dict] | None = None,
     text_page_results: list[dict] | None = None,
+    visual_page_results: list[dict] | None = None,
 ) -> dict:
     total_chars = sum(page.get("char_count", 0) for page in pages)
     total_tables = sum(len(page.get("tables", [])) for page in pages)
@@ -113,6 +114,7 @@ def build_document_analysis(
         vision_rule_count=vision_rule_count,
         rule_assessments=rule_assessments,
         text_page_results=text_page_results or [],
+        visual_page_results=visual_page_results or [],
         page_observations=page_observations,
     ).model_dump()
 
@@ -125,6 +127,7 @@ def build_document_result(
     selected_rules: list[dict] | None = None,
     rule_assessments: list[dict] | None = None,
     text_page_results: list[dict] | None = None,
+    visual_page_results: list[dict] | None = None,
 ) -> dict:
     return DocumentValidationResponse(
         document_id=document_id,
@@ -136,6 +139,7 @@ def build_document_result(
             selected_rules=selected_rules,
             rule_assessments=rule_assessments,
             text_page_results=text_page_results,
+            visual_page_results=visual_page_results,
         ),
         pages=pages,
     ).model_dump()

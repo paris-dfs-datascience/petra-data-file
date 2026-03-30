@@ -226,11 +226,11 @@
         `).join("");
     }
 
-    function renderPageRuleCards(items) {
+    function renderPageRuleCards(items, emptyMessage) {
         if (!items.length) {
             return `
                 <article class="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-sm text-slate-500">
-                    No text rules were selected for this run.
+                    ${escapeHtml(emptyMessage)}
                 </article>
             `;
         }
@@ -279,9 +279,7 @@
         }
 
         const textPageResults = Array.isArray(analysis.text_page_results) ? analysis.text_page_results : [];
-        const ruleAssessments = Array.isArray(analysis.rule_assessments) ? analysis.rule_assessments : [];
-        const visionRules = ruleAssessments.filter((rule) => rule.analysis_type === "vision");
-
+        const visualPageResults = Array.isArray(analysis.visual_page_results) ? analysis.visual_page_results : [];
         textAnalysisPanelEl.innerHTML = `
             <section class="space-y-6">
                 <div class="space-y-4">
@@ -289,7 +287,7 @@
                         <h3 class="text-base font-semibold text-slate-950">Text Rule Assessments By Page</h3>
                         <span class="text-sm text-slate-500">${escapeHtml(textPageResults.length)} page-rule result(s)</span>
                     </div>
-                    ${renderPageRuleCards(textPageResults)}
+                    ${renderPageRuleCards(textPageResults, "No text rules were selected for this run.")}
                 </div>
             </section>
         `;
@@ -298,10 +296,10 @@
             <section class="space-y-6">
                 <div class="space-y-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-base font-semibold text-slate-950">Visual Rule Assessments</h3>
-                        <span class="text-sm text-slate-500">${escapeHtml(visionRules.length)} result(s)</span>
+                        <h3 class="text-base font-semibold text-slate-950">Visual Rule Assessments By Page</h3>
+                        <span class="text-sm text-slate-500">${escapeHtml(visualPageResults.length)} page-rule result(s)</span>
                     </div>
-                    ${renderRuleCards(visionRules, "No visual rules were selected for this run.")}
+                    ${renderPageRuleCards(visualPageResults, "No visual rules were selected for this run.")}
                 </div>
             </section>
         `;

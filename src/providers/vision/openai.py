@@ -27,8 +27,14 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
     "properties": {
         "rule_id": {"type": "string"},
         "rule_name": {"type": "string"},
-        "status": {"type": "string", "enum": ["pass", "fail"]},
+        "verdict": {"type": "string", "enum": ["pass", "fail", "needs_review", "not_applicable"]},
+        "summary": {"type": "string"},
         "reasoning": {"type": "string"},
+        "findings": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
         "citations": {
             "type": "array",
             "items": {
@@ -42,9 +48,20 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["rule_id", "rule_name", "status", "reasoning", "citations"],
+    "required": ["rule_id", "rule_name", "verdict", "summary", "reasoning", "findings", "confidence", "citations"],
     "additionalProperties": False,
 }
+
+
+def _compact_rule_payload(rule: dict) -> str:
+    return (
+        f"RULE ID: {rule.get('id', '')}\n"
+        f"RULE NAME: {rule.get('name', '')}\n"
+        f"RULE TYPE: {rule.get('analysis_type', 'vision')}\n"
+        f"RULE QUERY: {rule.get('query', '')}\n"
+        f"RULE DESCRIPTION: {rule.get('description', '')}\n"
+        f"RULE ACCEPTANCE CRITERIA: {rule.get('acceptance_criteria', '')}\n"
+    )
 
 
 class OpenAIVisionProvider(VisionProvider):
@@ -72,62 +89,84 @@ class OpenAIVisionProvider(VisionProvider):
         retry=retry_if_exception_type((Exception,)),
         reraise=True,
     )
-    def _call_openai_with_retry(self, messages: list[dict[str, Any]], schema: dict[str, Any], schema_name: str) -> str:
-        with self._semaphore:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                messages=messages,
-                temperature=self._temperature,
-                seed=self._seed,
-                max_completion_tokens=self._max_tokens,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": schema_name,
-                        "strict": True,
-                        "schema": schema,
-                    },
-                },
+    def _call_openai_with_retry(self, input_items: list[dict[str, Any]], schema: dict[str, Any], schema_name: str) -> str:
+        responses_api = getattr(self._client, "responses", None)
+        if responses_api is None:
+            raise RuntimeError(
+                "The installed openai SDK does not expose Responses API. Upgrade the openai package to a version "
+                "that supports client.responses.create()."
             )
-        return response.choices[0].message.content
 
-    def evaluate_rule(self, images_data_urls: list[str], rule: dict, system_prompt: str) -> dict[str, Any]:
-        pages_word = "page" if len(images_data_urls) == 1 else "pages"
+        request_kwargs: dict[str, Any] = {
+            "model": self._model,
+            "input": input_items,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": schema_name,
+                    "strict": True,
+                    "schema": schema,
+                }
+            },
+        }
+        if self._max_tokens is not None:
+            request_kwargs["max_output_tokens"] = self._max_tokens
+        if self._temperature is not None:
+            request_kwargs["temperature"] = self._temperature
+
+        with self._semaphore:
+            response = responses_api.create(**request_kwargs)
+        output_text = getattr(response, "output_text", "") or ""
+        if output_text:
+            return output_text
+
+        for item in getattr(response, "output", []) or []:
+            for content in getattr(item, "content", []) or []:
+                text = getattr(content, "text", "") or ""
+                if text:
+                    return text
+
+        raise ValueError("Model returned no structured text content.")
+
+    def evaluate_rule(self, page_image: dict[str, Any], rule: dict, system_prompt: str) -> dict[str, Any]:
+        page_number = int(page_image.get("page", 0) or 0)
         content: list[dict[str, Any]] = [
             {
-                "type": "text",
+                "type": "input_text",
                 "text": (
-                    f"Evaluate the following RULE against the provided {pages_word} of a financial statement. "
-                    "Return JSON ONLY, matching the schema. Do not include any extra text.\n\n"
-                    f"RULE JSON:\n{json.dumps(rule, ensure_ascii=False)}\n\n"
-                    "Instructions:\n"
-                    "- Use only the provided images.\n"
-                    "- If evidence is unclear, choose fail and explain.\n"
-                    "- Provide citations as page numbers you used (1-based), and optionally short snippets or headings.\n"
+                    "Evaluate the following vision rule against the rendered PDF page image.\n"
+                    "Be concise.\n\n"
+                    f"{_compact_rule_payload(rule)}\n"
+                    "RENDERED PDF PAGE:\n"
+                    f"PDF page {page_number}\n"
                 ),
             }
         ]
-        for url in images_data_urls:
-            content.append(
-                {
-                    "type": "image_url",
-                    "image_url": {"url": url, "detail": self._detail},
-                }
-            )
+        content.append({"type": "input_text", "text": f"PDF page {page_number}"})
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": page_image["image_url"],
+                "detail": page_image.get("detail", self._detail),
+            }
+        )
 
-        messages: list[dict[str, Any]] = []
+        input_items: list[dict[str, Any]] = []
         if system_prompt.strip():
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": content})
+            input_items.append({"role": "system", "content": [{"type": "input_text", "text": system_prompt}]})
+        input_items.append({"role": "user", "content": content})
 
         try:
-            text = self._call_openai_with_retry(messages, RULE_RESULT_JSON_SCHEMA, "rule_result")
+            text = self._call_openai_with_retry(input_items, RULE_RESULT_JSON_SCHEMA, "vision_rule_result")
             return json.loads(text)
         except Exception as exc:
             return {
                 "rule_id": rule.get("id", ""),
                 "rule_name": rule.get("name", ""),
-                "status": "fail",
+                "verdict": "needs_review",
+                "summary": "Vision analysis failed.",
                 "reasoning": f"OpenAI API error: {exc}",
+                "findings": [],
+                "confidence": "low",
                 "citations": [],
             }

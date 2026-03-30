@@ -60,49 +60,6 @@ class ValidationJobService:
                 job.message = "Stopping analysis"
         return job
 
-    def _build_rule_assessments(self, selected_rules: list[dict], text_rule_results: dict[str, dict]) -> list[dict]:
-        rule_assessments: list[dict] = []
-        for rule in selected_rules:
-            rule_id = rule.get("id", "")
-            analysis_type = rule.get("analysis_type", "text")
-            if analysis_type == "text":
-                rule_assessments.append(
-                    text_rule_results.get(
-                        rule_id,
-                        {
-                            "rule_id": rule_id,
-                            "rule_name": rule.get("name", rule_id),
-                            "analysis_type": "text",
-                            "execution_status": "running",
-                            "verdict": "needs_review",
-                            "summary": "Waiting for page-level text analysis results.",
-                            "reasoning": "",
-                            "findings": [],
-                            "citations": [],
-                            "matched_pages": [],
-                            "notes": [],
-                        },
-                    )
-                )
-                continue
-
-            rule_assessments.append(
-                {
-                    "rule_id": rule_id,
-                    "rule_name": rule.get("name", rule_id),
-                    "analysis_type": "vision",
-                    "execution_status": "pending",
-                    "verdict": "needs_review",
-                    "summary": "Vision analysis is prepared but not yet executed in this build.",
-                    "reasoning": "The rule is marked as visual and will be evaluated when the image pipeline is enabled.",
-                    "findings": [],
-                    "citations": [],
-                    "matched_pages": [],
-                    "notes": ["Vision analysis pending integration."],
-                }
-            )
-        return rule_assessments
-
     def _run_job(
         self,
         job_id: str,
@@ -127,7 +84,9 @@ class ValidationJobService:
                 job.progress_total = total_steps
 
             pages = service.pipeline.extractor.extract(pdf_path=pdf_path)
-            total_steps = max(1, len(text_rules) * max(1, len(pages)))
+            text_total_steps = len(text_rules) * max(1, len(pages))
+            vision_total_steps = service.pipeline.vision_rule_analyzer.estimate_step_count(len(pages), selected_rules)
+            total_steps = max(1, text_total_steps + vision_total_steps)
             with job.lock:
                 job.progress_total = total_steps
             with job.lock:
@@ -137,8 +96,15 @@ class ValidationJobService:
                     source_filename=source_filename,
                     source_pdf_url=source_pdf_url,
                     selected_rules=selected_rules,
-                    rule_assessments=self._build_rule_assessments(selected_rules, {}),
+                    rule_assessments=service.pipeline.build_rule_assessments(
+                        selected_rules=selected_rules,
+                        text_rule_results={},
+                        vision_rule_results={},
+                        default_text_status="running",
+                        default_vision_status="pending",
+                    ),
                     text_page_results=[],
+                    visual_page_results=[],
                 )
 
             def on_page_result(page_result: dict, current_rule_results: dict[str, dict], current_page_results: list[dict]) -> None:
@@ -154,8 +120,15 @@ class ValidationJobService:
                         source_filename=source_filename,
                         source_pdf_url=source_pdf_url,
                         selected_rules=selected_rules,
-                        rule_assessments=self._build_rule_assessments(selected_rules, current_rule_results),
+                        rule_assessments=service.pipeline.build_rule_assessments(
+                            selected_rules=selected_rules,
+                            text_rule_results=current_rule_results,
+                            vision_rule_results={},
+                            default_text_status="running",
+                            default_vision_status="pending",
+                        ),
                         text_page_results=current_page_results,
+                        visual_page_results=[],
                     )
 
             text_analysis_results = service.pipeline.text_rule_analyzer.analyze(
@@ -167,6 +140,59 @@ class ValidationJobService:
 
             text_rule_results = text_analysis_results.get("rule_results", {})
             text_page_results = text_analysis_results.get("page_results", [])
+            vision_progress_offset = len(text_page_results)
+
+            with job.lock:
+                job.message = "Rendering pages for visual analysis"
+                job.progress_current = min(vision_progress_offset, job.progress_total)
+                job.result = build_document_result(
+                    document_id=Path(pdf_path).stem,
+                    pages=pages,
+                    source_filename=source_filename,
+                    source_pdf_url=source_pdf_url,
+                    selected_rules=selected_rules,
+                    rule_assessments=service.pipeline.build_rule_assessments(
+                        selected_rules=selected_rules,
+                        text_rule_results=text_rule_results,
+                        vision_rule_results={},
+                        default_text_status="completed",
+                        default_vision_status="running",
+                    ),
+                    text_page_results=text_page_results,
+                    visual_page_results=[],
+                )
+
+            def on_vision_page_result(page_result: dict, current_rule_results: dict[str, dict], current_page_results: list[dict]) -> None:
+                current_rule = page_result.get("rule_name", page_result.get("rule_id", ""))
+                current_page = page_result.get("page", 0)
+                with job.lock:
+                    job.message = f"Analyzing visual page {current_page} - {current_rule}"
+                    job.progress_current = min(vision_progress_offset + len(current_page_results), job.progress_total)
+                    job.result = build_document_result(
+                        document_id=Path(pdf_path).stem,
+                        pages=pages,
+                        source_filename=source_filename,
+                        source_pdf_url=source_pdf_url,
+                        selected_rules=selected_rules,
+                        rule_assessments=service.pipeline.build_rule_assessments(
+                            selected_rules=selected_rules,
+                            text_rule_results=text_rule_results,
+                            vision_rule_results=current_rule_results,
+                            default_text_status="completed",
+                            default_vision_status="running",
+                        ),
+                        text_page_results=text_page_results,
+                        visual_page_results=current_page_results,
+                    )
+
+            vision_analysis_results = service.pipeline.vision_rule_analyzer.analyze(
+                pdf_path=pdf_path,
+                rules=selected_rules,
+                on_page_result=on_vision_page_result,
+                is_cancelled=lambda: bool(job.cancel_requested),
+            )
+            vision_rule_results = vision_analysis_results.get("rule_results", {})
+            visual_page_results = vision_analysis_results.get("page_results", [])
             final_status = "cancelled" if job.cancel_requested else "completed"
             final_message = "Analysis stopped" if job.cancel_requested else "Analysis complete"
 
@@ -180,8 +206,13 @@ class ValidationJobService:
                     source_filename=source_filename,
                     source_pdf_url=source_pdf_url,
                     selected_rules=selected_rules,
-                    rule_assessments=self._build_rule_assessments(selected_rules, text_rule_results),
+                    rule_assessments=service.pipeline.build_rule_assessments(
+                        selected_rules=selected_rules,
+                        text_rule_results=text_rule_results,
+                        vision_rule_results=vision_rule_results,
+                    ),
                     text_page_results=text_page_results,
+                    visual_page_results=visual_page_results,
                 )
         except Exception as exc:
             with job.lock:

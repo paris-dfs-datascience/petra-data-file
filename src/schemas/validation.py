@@ -68,6 +68,7 @@ class DocumentAnalysisSchema(BaseModel):
     vision_rule_count: int = 0
     rule_assessments: list[RuleAssessmentSchema] = Field(default_factory=list)
     text_page_results: list[PageRuleAssessmentSchema] = Field(default_factory=list)
+    visual_page_results: list[PageRuleAssessmentSchema] = Field(default_factory=list)
     page_observations: list[PageAnalysisSchema] = Field(default_factory=list)
 
 

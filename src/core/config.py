@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,8 +23,10 @@ class PdfConfig(BaseModel):
 
 
 class VisionConfig(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     provider: str = "openai"
-    model_id: str = "gpt-5.2"
+    model_id: str = "gpt-5.4"
     max_images_per_request: int = 10
     temperature: float = 0.1
     seed: int = 42
@@ -62,7 +64,7 @@ class Settings(BaseSettings):
     COHERE_API_KEY: str | None = None
     VISION_PROVIDER: str = "openai"
     OPENAI_TEXT_MODEL: str = "gpt-5.4-mini"
-    OPENAI_VISION_MODEL: str = "gpt-5-mini"
+    OPENAI_VISION_MODEL: str | None = None
     OPENAI_TEXT_TEMPERATURE: float | None = None
     OPENAI_TEXT_MAX_COMPLETION_TOKENS: int | None = None
 

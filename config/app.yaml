@@ -31,7 +31,7 @@ retrieval:
 
 vision:
   provider: "openai"
-  model_id: "gpt-5.2"
+  model_id: "gpt-5.4"
   max_images_per_request: 10
   temperature: 0.1
   seed: 42
