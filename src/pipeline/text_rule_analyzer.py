@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 
 from src.core.config import Settings
@@ -15,8 +16,85 @@ def _page_blob(page: dict) -> str:
     return f"## Page {page.get('page', '?')}\nPlain Extracted Text:\n{text}"
 
 
-def _serialize_page_content(page: dict) -> str:
-    return _page_blob(page)
+def _tables_blob(page: dict) -> str:
+    tables = page.get("tables") or []
+    if not tables:
+        return "No extracted tables."
+
+    rendered_tables: list[str] = []
+    for table in tables[:3]:
+        rows = table.get("rows") or []
+        rendered_rows: list[str] = []
+        for row in rows[:12]:
+            normalized_cells = [str(cell or "").strip() or "-" for cell in row]
+            rendered_rows.append(" | ".join(normalized_cells))
+        if len(rows) > 12:
+            rendered_rows.append(f"... {len(rows) - 12} additional row(s) omitted.")
+        rendered_tables.append(
+            f"Table {table.get('index', '?')}:\n" + ("\n".join(rendered_rows) if rendered_rows else "No extracted rows.")
+        )
+
+    if len(tables) > 3:
+        rendered_tables.append(f"... {len(tables) - 3} additional table(s) omitted.")
+    return "\n\n".join(rendered_tables)
+
+
+def _rule_needs_layout_context(rule: dict) -> bool:
+    rule_id = str(rule.get("id", "")).upper()
+    if rule_id == "FMT-HEADINGS":
+        return True
+
+    haystack = " ".join(
+        [
+            str(rule.get("name", "")),
+            str(rule.get("query", "")),
+            str(rule.get("description", "")),
+            str(rule.get("acceptance_criteria", "")),
+        ]
+    ).lower()
+    keywords = (
+        "header",
+        "heading",
+        "center",
+        "centred",
+        "centered",
+        "align",
+        "alignment",
+        "layout",
+        "spacing",
+        "cut off",
+        "cutoff",
+        "misprint",
+    )
+    return any(keyword in haystack for keyword in keywords)
+
+
+def _layout_blob(page: dict) -> str:
+    layout_summary = page.get("layout_summary") or {}
+    top_lines = layout_summary.get("top_lines") or []
+    if not top_lines:
+        return "No positional line metadata available."
+
+    return json.dumps(
+        {
+            "page_width": layout_summary.get("page_width", 0.0),
+            "page_height": layout_summary.get("page_height", 0.0),
+            "alignment_reference": layout_summary.get("alignment_reference", {}),
+            "top_lines": top_lines,
+        },
+        indent=2,
+        ensure_ascii=True,
+    )
+
+
+def _serialize_page_content(page: dict, rule: dict) -> str:
+    sections = [
+        _page_blob(page),
+        "Extracted Tables:\n" + _tables_blob(page),
+    ]
+    if _rule_needs_layout_context(rule):
+        sections.append("Layout Metadata:\n" + _layout_blob(page))
+    return "\n\n".join(section for section in sections if section.strip())
 
 
 def _build_skipped_result(rule: dict, message: str, execution_status: str = "skipped", page: int | None = None) -> dict:
@@ -129,7 +207,7 @@ class TextRuleAnalyzer:
                     return {"rule_results": results, "page_results": page_results}
                 page_number = int(page.get("page", 0))
                 try:
-                    document_content = _serialize_page_content(page)
+                    document_content = _serialize_page_content(page, rule)
                     raw_result = provider.evaluate_rule(document_content=document_content, rule=rule, system_prompt=self.system_prompt)
                     citations = raw_result.get("citations", [])
                     normalized_citations = [

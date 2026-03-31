@@ -8,10 +8,12 @@ Instructions:
 - Use direct visual evidence from the image only.
 - Do not infer content, layout defects, or truncation that are not clearly visible.
 - If the evidence is unclear, return `needs_review`.
+- When multiple distinct problems on the page violate the same rule, report all of them, not just the first one.
 - Provide concise citations using page numbers and short visible evidence.
 - For every finding, state both:
   1. what is wrong or suspicious, and
   2. what the correct or expected visual form should be.
+- Keep the output concise, but include all distinct rule-relevant issues visible on the page, up to 6 findings and 6 citations.
 - Return JSON only and match the requested schema exactly.
 
 Decision guidance:

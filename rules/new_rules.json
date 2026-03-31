@@ -19,6 +19,15 @@
       "severity": "High"
     },
     {
+      "id": "FMT-VISUAL-INTEGRITY",
+      "name": "Visual Layout Integrity",
+      "analysis_type": "vision",
+      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment.",
+      "description": "All visually relevant page elements, including headings, tables, columns, logos, and other layout components, should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
+      "acceptance_criteria": "The page layout is visually clean and consistent. Headings, tables, columns, and logos are aligned and visually complete. No text is cut off, misprinted, deformed, or obviously misaligned. Report all distinct issues for this rule on the page.",
+      "severity": "High"
+    },
+    {
       "id": "FMT-DOLLAR-SIGNS",
       "name": "Dollar Sign Placement",
       "analysis_type": "text",
@@ -28,12 +37,21 @@
       "severity": "High"
     },
     {
-      "id": "FMT-VISUAL-INTEGRITY",
-      "name": "Visual Layout Integrity",
-      "analysis_type": "vision",
-      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment.",
-      "description": "All visually relevant page elements, including headings, tables, columns, logos, and other layout components, should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
-      "acceptance_criteria": "The page layout is visually clean and consistent. Headings, tables, columns, and logos are aligned and visually complete. No text is cut off, misprinted, deformed, or obviously misaligned. Report all distinct issues for this rule on the page.",
+      "id": "MATH-TABLE-CHECKS",
+      "name": "Arithmetic Consistency Check",
+      "analysis_type": "text",
+      "query": "Review numeric rows, subtotals, totals, and rollforwards in tables or structured numeric text.",
+      "description": "Check whether numeric relationships in tables or structured numeric sections appear mathematically correct. Verify additions, subtractions, subtotals, totals, and similar calculations when the necessary inputs are present in the extracted page text.",
+      "acceptance_criteria": "If the extracted text provides enough numeric evidence, totals and subtotals should reconcile correctly. Any apparent arithmetic mismatch should be reported with the relevant figures and page citation. If the evidence is incomplete, report needs_review rather than guessing. Report all distinct issues for this rule on the page.",
+      "severity": "High"
+    },
+    {
+      "id": "LANG-EN-GRAMMAR",
+      "name": "English Grammar and Spelling",
+      "analysis_type": "text",
+      "query": "Review the full page text for grammar, spelling, and wording quality. Report multiple distinct issues when present.",
+      "description": "Check whether the English wording on the page is grammatically correct, clearly written, and free of obvious spelling mistakes, malformed words, broken phrasing, incorrect singular/plural usage, or possessive/wording problems. Review the full page text, not just the first issue found. Ignore numeric formatting issues unless they directly affect the wording.",
+      "acceptance_criteria": "Narrative English text should be grammatically correct, coherent, and free of obvious spelling or wording problems. If multiple distinct issues exist on the page, report them separately. Each finding should identify the problematic phrase and state the correct or expected wording, with page citation. Report all distinct issues for this rule on the page.",
       "severity": "High"
     }
   ]
