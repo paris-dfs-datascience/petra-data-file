@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from src.core.config import Settings
 from src.core.prompting import load_prompt
-from src.providers.text.openai import OpenAITextAnalysisProvider
+from src.providers.text.factory import build_text_provider
 
 
 TEXT_PROMPT_PATH = "config/text_analysis_system_prompt.md"
@@ -178,24 +178,19 @@ class TextRuleAnalyzer:
         if not text_rules:
             return {"rule_results": {}, "page_results": []}
 
-        if not self.settings.OPENAI_API_KEY:
+        try:
+            provider = build_text_provider(self.settings)
+        except ValueError as exc:
             return {
                 "rule_results": {
                     rule.get("id", ""): _build_skipped_result(
                         rule,
-                        "OpenAI API key is not configured. Text analysis was skipped.",
+                        str(exc),
                     )
                     for rule in text_rules
                 },
                 "page_results": [],
             }
-
-        provider = OpenAITextAnalysisProvider(
-            api_key=self.settings.OPENAI_API_KEY,
-            model_id=self.settings.OPENAI_TEXT_MODEL,
-            temperature=self.settings.OPENAI_TEXT_TEMPERATURE,
-            max_completion_tokens=self.settings.OPENAI_TEXT_MAX_COMPLETION_TOKENS,
-        )
         results: dict[str, dict] = {}
         page_results: list[dict] = []
         for rule in text_rules:

@@ -7,6 +7,7 @@ from typing import Any
 from openai import OpenAI
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from src.providers.analysis_result import RULE_RESULT_JSON_SCHEMA, compact_rule_payload
 from src.providers.vision.base import VisionProvider
 
 
@@ -20,48 +21,6 @@ def get_global_semaphore(max_concurrent: int = 10) -> threading.Semaphore:
         if _GLOBAL_OPENAI_SEMAPHORE is None:
             _GLOBAL_OPENAI_SEMAPHORE = threading.Semaphore(max_concurrent)
     return _GLOBAL_OPENAI_SEMAPHORE
-
-
-RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "rule_id": {"type": "string"},
-        "rule_name": {"type": "string"},
-        "verdict": {"type": "string", "enum": ["pass", "fail", "needs_review", "not_applicable"]},
-        "summary": {"type": "string"},
-        "reasoning": {"type": "string"},
-        "findings": {
-            "type": "array",
-            "items": {"type": "string"},
-        },
-        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
-        "citations": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "page": {"type": "integer"},
-                    "evidence": {"type": "string"},
-                },
-                "required": ["page", "evidence"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    "required": ["rule_id", "rule_name", "verdict", "summary", "reasoning", "findings", "confidence", "citations"],
-    "additionalProperties": False,
-}
-
-
-def _compact_rule_payload(rule: dict) -> str:
-    return (
-        f"RULE ID: {rule.get('id', '')}\n"
-        f"RULE NAME: {rule.get('name', '')}\n"
-        f"RULE TYPE: {rule.get('analysis_type', 'vision')}\n"
-        f"RULE QUERY: {rule.get('query', '')}\n"
-        f"RULE DESCRIPTION: {rule.get('description', '')}\n"
-        f"RULE ACCEPTANCE CRITERIA: {rule.get('acceptance_criteria', '')}\n"
-    )
 
 
 class OpenAIVisionProvider(VisionProvider):
@@ -136,7 +95,7 @@ class OpenAIVisionProvider(VisionProvider):
                 "text": (
                     "Evaluate the following vision rule against the rendered PDF page image.\n"
                     "Be concise.\n\n"
-                    f"{_compact_rule_payload(rule)}\n"
+                    f"{compact_rule_payload(rule, fallback_analysis_type='vision')}\n"
                     "RENDERED PDF PAGE:\n"
                     f"PDF page {page_number}\n"
                 ),

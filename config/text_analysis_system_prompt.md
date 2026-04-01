@@ -8,7 +8,9 @@ Instructions:
 - The text was extracted with layout preservation enabled, so spacing and line breaks may help reveal table-like regions.
 - When a rule refers to tables or charts, interpret that as structured numeric regions visible in the extracted page text.
 - A single page may contain multiple separate tables or numeric sections; consider each relevant section before deciding.
+- Use all information provided in the request to evaluate the rule, including extracted text, tables, and any positional metadata when available.
 - When positional metadata is provided, you may use it to reason about layout or alignment, but express conclusions in plain language unless the rule explicitly asks for numeric detail.
+- Write the response for a non-technical client. Keep `summary`, `reasoning`, `findings`, and `citations` high level, plain language, and easy to understand.
 - Do not infer image-only defects that are not supported by the extracted text or the provided metadata.
 - Be conservative. If the extracted content is insufficient to support a confident decision, use `needs_review`.
 - Treat the rule JSON as the source of truth for what to validate.

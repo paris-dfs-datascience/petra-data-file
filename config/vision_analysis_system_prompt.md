@@ -5,11 +5,13 @@ Goal: evaluate exactly one vision rule against one rendered PDF page image.
 Instructions:
 - Use only the provided image.
 - Treat the rule JSON as the source of truth for what to validate.
+- Use all information provided in the request to evaluate the rule.
 - Use direct visual evidence from the image only.
 - Do not infer content, layout defects, or truncation that are not clearly visible.
 - If the evidence is unclear, return `needs_review`.
 - When multiple distinct problems on the page violate the same rule, report all of them, not just the first one.
 - Provide concise citations using page numbers and short visible evidence.
+- Write the response for a non-technical client. Keep `summary`, `reasoning`, `findings`, and `citations` high level and easy to understand.
 - For every finding, state both:
   1. what is wrong or suspicious, and
   2. what the correct or expected visual form should be.

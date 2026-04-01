@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import yaml
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,12 +62,23 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("OPENAI_API_KEY", "OPEN_AI_API_KEY"),
     )
+    ANTHROPIC_API_KEY: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "ANTHROPIC_AI_API_KEY", "ANTROPIC_AI_API_KEY"),
+    )
     COHERE_API_KEY: str | None = None
-    VISION_PROVIDER: str = "openai"
+    TEXT_PROVIDER: Literal["openai", "claude"] = "openai"
+    VISION_PROVIDER: Literal["openai", "claude"] = "openai"
     OPENAI_TEXT_MODEL: str = "gpt-5.4-mini"
     OPENAI_VISION_MODEL: str | None = None
     OPENAI_TEXT_TEMPERATURE: float | None = None
     OPENAI_TEXT_MAX_COMPLETION_TOKENS: int | None = None
+    CLAUDE_TEXT_MODEL: str = "claude-sonnet-4-6"
+    CLAUDE_VISION_MODEL: str | None = None
+    CLAUDE_TEXT_TEMPERATURE: float | None = None
+    CLAUDE_VISION_TEMPERATURE: float | None = None
+    CLAUDE_TEXT_MAX_TOKENS: int = 1600
+    CLAUDE_VISION_MAX_TOKENS: int = 1600
 
     DATABASE_BACKEND: str = "sqlite"
     DATABASE_URL: str | None = None
@@ -96,6 +108,20 @@ class Settings(BaseSettings):
 
     AZURE_BLOB_CONNECTION_STRING: str | None = None
     AZURE_BLOB_CONTAINER: str | None = None
+
+    @field_validator("TEXT_PROVIDER", "VISION_PROVIDER", mode="before")
+    @classmethod
+    def normalize_provider(cls, value: str) -> str:
+        normalized = str(value or "openai").strip().lower().replace("_", " ").replace("-", " ")
+        provider_aliases = {
+            "openai": "openai",
+            "open ai": "openai",
+            "claude": "claude",
+            "anthropic": "claude",
+        }
+        if normalized not in provider_aliases:
+            raise ValueError(f"Unsupported provider '{value}'. Expected one of: openai, claude.")
+        return provider_aliases[normalized]
 
 
 @lru_cache(maxsize=1)
