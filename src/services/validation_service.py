@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from src.core.config import get_settings, load_app_yaml
+from src.core.database import init_database
 from src.pipeline.orchestrator import ValidationPipeline
 from src.services.rule_service import RuleService
 
 
 class ValidationService:
     def __init__(self) -> None:
+        init_database()
         self.settings = get_settings()
         self.app_config = load_app_yaml()
         self.rule_service = RuleService()
@@ -17,10 +19,14 @@ class ValidationService:
         pdf_path: str,
         source_filename: str | None = None,
         source_pdf_url: str | None = None,
+        rules: list[dict] | None = None,
         rules_json_path: str | None = None,
         rules_json_str: str | None = None,
     ) -> dict:
-        selected_rules = self.rule_service.load_rules(rules_json_path=rules_json_path, rules_json_str=rules_json_str)
+        selected_rules = rules if rules is not None else self.rule_service.load_rules(
+            rules_json_path=rules_json_path,
+            rules_json_str=rules_json_str,
+        )
         return self.pipeline.run(
             pdf_path=pdf_path,
             source_filename=source_filename,
