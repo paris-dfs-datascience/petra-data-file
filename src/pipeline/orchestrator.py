@@ -104,7 +104,6 @@ class ValidationPipeline:
         pdf_path: str,
         rules: list[dict] | None = None,
         source_filename: str | None = None,
-        source_pdf_url: str | None = None,
     ) -> dict:
         doc_id = Path(pdf_path).stem + f"_{_timestamp_id()}"
         pages = self.extractor.extract(pdf_path=pdf_path)
@@ -124,7 +123,6 @@ class ValidationPipeline:
             document_id=doc_id,
             pages=pages,
             source_filename=source_filename,
-            source_pdf_url=source_pdf_url,
             selected_rules=selected_rules,
             rule_assessments=rule_assessments,
             text_page_results=text_page_results,

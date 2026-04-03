@@ -20,7 +20,7 @@ COPY petra-logo.svg ./petra-logo.svg
 
 ENV PYTHONPATH=/app
 
-RUN mkdir -p /app/public /app/data/tmp /app/data/reports /app/data/uploads
+RUN mkdir -p /app/data/tmp
 
 EXPOSE 8000
 

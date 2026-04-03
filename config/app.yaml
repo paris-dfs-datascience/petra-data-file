@@ -3,11 +3,6 @@ app:
   project_name: "rag-vision-pipeline"
   env_file: ".env"
 
-paths:
-  uploads_dir: "data/uploads"
-  indexes_dir: "data/indexes"
-  reports_dir: "data/reports"
-
 pdf:
   dpi: 300
   image_format: "png"

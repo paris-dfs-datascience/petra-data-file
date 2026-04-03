@@ -16,7 +16,6 @@ class ValidationService:
         self,
         pdf_path: str,
         source_filename: str | None = None,
-        source_pdf_url: str | None = None,
         rules_json_path: str | None = None,
         rules_json_str: str | None = None,
     ) -> dict:
@@ -24,6 +23,5 @@ class ValidationService:
         return self.pipeline.run(
             pdf_path=pdf_path,
             source_filename=source_filename,
-            source_pdf_url=source_pdf_url,
             rules=selected_rules,
         )

@@ -14,6 +14,7 @@ def test_pipeline_returns_page_structure():
     assert "document_id" in result
     assert "analysis" in result
     assert "pages" in result
+    assert "source_pdf_url" not in result
     assert isinstance(result["pages"], list)
     assert "rule_assessments" in result["analysis"]
 

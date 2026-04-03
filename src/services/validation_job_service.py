@@ -32,7 +32,6 @@ class ValidationJobService:
         self,
         pdf_path: str,
         source_filename: str | None,
-        source_pdf_url: str | None,
         rules_json_str: str | None,
     ) -> ValidationJob:
         job = ValidationJob(job_id=uuid.uuid4().hex)
@@ -40,7 +39,7 @@ class ValidationJobService:
             self._jobs[job.job_id] = job
         thread = threading.Thread(
             target=self._run_job,
-            args=(job.job_id, pdf_path, source_filename, source_pdf_url, rules_json_str),
+            args=(job.job_id, pdf_path, source_filename, rules_json_str),
             daemon=True,
         )
         thread.start()
@@ -65,7 +64,6 @@ class ValidationJobService:
         job_id: str,
         pdf_path: str,
         source_filename: str | None,
-        source_pdf_url: str | None,
         rules_json_str: str | None,
     ) -> None:
         job = self.get_job(job_id)
@@ -94,7 +92,6 @@ class ValidationJobService:
                     document_id=Path(pdf_path).stem,
                     pages=pages,
                     source_filename=source_filename,
-                    source_pdf_url=source_pdf_url,
                     selected_rules=selected_rules,
                     rule_assessments=service.pipeline.build_rule_assessments(
                         selected_rules=selected_rules,
@@ -118,7 +115,6 @@ class ValidationJobService:
                         document_id=Path(pdf_path).stem,
                         pages=pages,
                         source_filename=source_filename,
-                        source_pdf_url=source_pdf_url,
                         selected_rules=selected_rules,
                         rule_assessments=service.pipeline.build_rule_assessments(
                             selected_rules=selected_rules,
@@ -149,7 +145,6 @@ class ValidationJobService:
                     document_id=Path(pdf_path).stem,
                     pages=pages,
                     source_filename=source_filename,
-                    source_pdf_url=source_pdf_url,
                     selected_rules=selected_rules,
                     rule_assessments=service.pipeline.build_rule_assessments(
                         selected_rules=selected_rules,
@@ -172,7 +167,6 @@ class ValidationJobService:
                         document_id=Path(pdf_path).stem,
                         pages=pages,
                         source_filename=source_filename,
-                        source_pdf_url=source_pdf_url,
                         selected_rules=selected_rules,
                         rule_assessments=service.pipeline.build_rule_assessments(
                             selected_rules=selected_rules,
@@ -204,7 +198,6 @@ class ValidationJobService:
                     document_id=Path(pdf_path).stem,
                     pages=pages,
                     source_filename=source_filename,
-                    source_pdf_url=source_pdf_url,
                     selected_rules=selected_rules,
                     rule_assessments=service.pipeline.build_rule_assessments(
                         selected_rules=selected_rules,

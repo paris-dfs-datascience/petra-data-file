@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 from pathlib import Path
+import tempfile
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from src.core.config import get_settings
-from src.providers.storage.factory import get_storage_provider
 from src.schemas.validation import DocumentValidationResponse, ValidationJobResponse
-from src.services.document_service import DocumentService
 from src.services.validation_service import ValidationService
 from src.services.validation_job_service import validation_job_service
 
 
 router = APIRouter(prefix="/validations", tags=["validations"])
+
+
+def _stage_pdf_for_processing(filename: str, content: bytes, workdir: str) -> tuple[str, str]:
+    safe_filename = Path(filename or "document.pdf").name or "document.pdf"
+    temp_dir = Path(workdir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(prefix="upload_", suffix=".pdf", dir=str(temp_dir), delete=False) as handle:
+        handle.write(content)
+        return safe_filename, handle.name
 
 
 @router.post("", response_model=DocumentValidationResponse)
@@ -21,20 +29,22 @@ async def validate_document(
     rules_json: str | None = Form(None, description="Selected rules JSON"),
 ) -> DocumentValidationResponse:
     settings = get_settings()
-    document_service = DocumentService(storage=get_storage_provider(settings), workdir=settings.LOCAL_WORKDIR)
-    upload = document_service.prepare_upload_for_processing(filename=pdf.filename or "document.pdf", content=await pdf.read())
+    filename, pdf_path = _stage_pdf_for_processing(
+        filename=pdf.filename or "document.pdf",
+        content=await pdf.read(),
+        workdir=settings.LOCAL_WORKDIR,
+    )
     service = ValidationService()
     try:
         result = service.validate_document(
-            pdf_path=upload.local_processing_path,
-            source_filename=upload.filename,
-            source_pdf_url=upload.public_url,
+            pdf_path=pdf_path,
+            source_filename=filename,
             rules_json_str=rules_json,
         )
         return DocumentValidationResponse(**result)
     finally:
         try:
-            Path(upload.local_processing_path).unlink(missing_ok=True)
+            Path(pdf_path).unlink(missing_ok=True)
         except Exception:
             pass
 
@@ -45,12 +55,14 @@ async def create_validation_job(
     rules_json: str | None = Form(None, description="Selected rules JSON"),
 ) -> ValidationJobResponse:
     settings = get_settings()
-    document_service = DocumentService(storage=get_storage_provider(settings), workdir=settings.LOCAL_WORKDIR)
-    upload = document_service.prepare_upload_for_processing(filename=pdf.filename or "document.pdf", content=await pdf.read())
+    filename, pdf_path = _stage_pdf_for_processing(
+        filename=pdf.filename or "document.pdf",
+        content=await pdf.read(),
+        workdir=settings.LOCAL_WORKDIR,
+    )
     job = validation_job_service.start_job(
-        pdf_path=upload.local_processing_path,
-        source_filename=upload.filename,
-        source_pdf_url=upload.public_url,
+        pdf_path=pdf_path,
+        source_filename=filename,
         rules_json_str=rules_json,
     )
     return ValidationJobResponse(

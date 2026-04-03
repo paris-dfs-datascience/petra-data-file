@@ -29,22 +29,15 @@ The same run can be reviewed in the UI through tabs that separate the process in
    - Choose providers with `TEXT_PROVIDER` and `VISION_PROVIDER` using `openai` or `claude`.
    - For Claude, configure `ANTHROPIC_API_KEY` (the app also accepts `ANTHROPIC_AI_API_KEY` and `ANTROPIC_AI_API_KEY`).
    - Optional tunables in `config/app.yaml`.
+   - Temporary workspace behavior is controlled with `LOCAL_WORKDIR`.
 
-### Storage and database modes
+### Ephemeral runtime
 
-The service supports two common deployment styles:
+The service does not persist uploaded PDFs, validation runs, or feedback records.
 
-- Local mode
-  - `DATABASE_BACKEND=sqlite`
-  - `STORAGE_BACKEND=local`
-  - uploaded files are persisted under `public/`
-  - public files are served under `/public/...`
-- Remote mode
-  - `DATABASE_BACKEND=postgresql`
-  - `STORAGE_BACKEND=minio` for MinIO or any S3-compatible endpoint
-  - `STORAGE_BACKEND=azure_blob` for Azure Blob Storage
-
-If `DATABASE_URL` is set, it takes precedence over the derived database settings.
+- uploaded PDFs are copied into a temporary working directory only for the duration of the analysis
+- rendered page images are temporary and removed after use
+- the built-in UI previews the original PDF from the browser's local file object, not from a server-side public URL
 
 3. **Run CLI (one-off PDF validation)**
    python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
@@ -58,18 +51,9 @@ If `DATABASE_URL` is set, it takes precedence over the derived database settings
 5. **Run with Docker Compose**
    docker compose up --build
 
-The compose file starts three services:
+The compose file starts a single service:
 
 - `petra_vision_api`
-- `petra_vision_postgres`
-- `petra_vision_minio`
-
-The application is intentionally configured to use the simple local mode inside the container:
-
-- `DATABASE_BACKEND=sqlite`
-- `STORAGE_BACKEND=local`
-
-PostgreSQL and MinIO are available on the Docker network for future switching, but they are not used by default.
 
 ## Optional UI
 
@@ -88,7 +72,7 @@ The UI files are organized under:
 When enabled, the UI presents the workflow in tabs so the same uploaded document can be reviewed as one continuous process:
 
 - `Original PDF`
-  - inspect the uploaded source document directly
+  - inspect the uploaded source document from the browser-local preview
 - `Extracted Text`
   - review the page-by-page text and tables recovered by `pdfplumber`
 - `Analysis`
@@ -104,7 +88,6 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   "document_id": "sample_20260326T140100",
   "page_count": 2,
   "source_filename": "sample.pdf",
-  "source_pdf_url": "/public/uploads/originals/sample_abc123.pdf",
   "analysis": {
     "overview": [
       { "label": "Pages", "value": "2", "detail": "Total pages processed from the PDF." },
@@ -148,9 +131,8 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
 - **API**: FastAPI routers under `/api/v1`
 - **Pipeline**: PDF extraction and derived analysis live in `src/pipeline/`
 - **Services**: business orchestration lives in `src/services/`
-- **Providers**: storage integrations live in `src/providers/`
+- **Providers**: text and vision integrations live in `src/providers/`
 - **Schemas**: request and response contracts live in `src/schemas/`
-- **Models**: SQLAlchemy models live in `src/models/`
 
 ---
 
@@ -164,13 +146,13 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   - text provider selection via `TEXT_PROVIDER`
   - vision provider selection via `VISION_PROVIDER`
   - OpenAI or Claude model selection
-  - database backend selection
-  - storage backend selection
+  - temporary workspace location via `LOCAL_WORKDIR`
   - UI enable/disable behavior
 
 ## Notes
 
 - This service extracts PDF content with `pdfplumber` and uses that extracted material as the input to a separate analysis stage.
+- The service runs without persistent storage. Uploaded PDFs and rendered page images are removed after analysis.
 - The UI is designed to expose the process in tabs so operators can review the source PDF, the extracted output, and the resulting analysis independently.
 - Ensure you have permission to process the uploaded documents.
 

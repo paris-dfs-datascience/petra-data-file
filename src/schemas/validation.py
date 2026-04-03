@@ -76,7 +76,6 @@ class DocumentValidationResponse(BaseModel):
     document_id: str
     page_count: int = Field(default=0, description="Total number of pages processed.")
     source_filename: Optional[str] = None
-    source_pdf_url: Optional[str] = None
     analysis: DocumentAnalysisSchema = Field(default_factory=DocumentAnalysisSchema)
     pages: list[PageExtractionSchema] = Field(default_factory=list)
 
