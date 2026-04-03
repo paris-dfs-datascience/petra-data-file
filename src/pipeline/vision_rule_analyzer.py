@@ -10,7 +10,7 @@ from pathlib import Path
 from src.core.config import AppYaml, Settings
 from src.core.prompting import load_prompt
 from src.pipeline.pdf_renderer import PdfRenderer
-from src.providers.vision.openai import OpenAIVisionProvider
+from src.providers.vision.factory import build_vision_provider
 
 
 VISION_PROMPT_PATH = "config/vision_analysis_system_prompt.md"
@@ -134,27 +134,19 @@ class VisionRuleAnalyzer:
         if not vision_rules:
             return {"rule_results": {}, "page_results": []}
 
-        if not self.settings.OPENAI_API_KEY:
+        try:
+            provider = build_vision_provider(self.app_config, self.settings)
+        except ValueError as exc:
             return {
                 "rule_results": {
                     rule.get("id", ""): _build_skipped_result(
                         rule,
-                        "OpenAI API key is not configured. Vision analysis was skipped.",
+                        str(exc),
                     )
                     for rule in vision_rules
                 },
                 "page_results": [],
             }
-
-        provider = OpenAIVisionProvider(
-            api_key=self.settings.OPENAI_API_KEY,
-            model_id=self.settings.OPENAI_VISION_MODEL or self.app_config.vision.model_id,
-            temperature=self.app_config.vision.temperature,
-            seed=self.app_config.vision.seed,
-            max_completion_tokens=self.app_config.vision.max_completion_tokens,
-            image_detail=self.app_config.vision.image_detail,
-            max_concurrent=self.app_config.vision.global_max_concurrent,
-        )
 
         page_images = self._render_page_images(pdf_path)
         if not page_images:

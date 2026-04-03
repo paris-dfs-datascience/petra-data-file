@@ -26,6 +26,8 @@ The same run can be reviewed in the UI through tabs that separate the process in
    python -m pip install -r requirements.txt
 2. **Configure**
    - Copy `.env.example` to `.env`.
+   - Choose providers with `TEXT_PROVIDER` and `VISION_PROVIDER` using `openai` or `claude`.
+   - For Claude, configure `ANTHROPIC_API_KEY` (the app also accepts `ANTHROPIC_AI_API_KEY` and `ANTROPIC_AI_API_KEY`).
    - Optional tunables in `config/app.yaml`.
 
 ### Storage and database modes
@@ -159,6 +161,9 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   - image format
   - report toggles
 - Environment variables control:
+  - text provider selection via `TEXT_PROVIDER`
+  - vision provider selection via `VISION_PROVIDER`
+  - OpenAI or Claude model selection
   - database backend selection
   - storage backend selection
   - UI enable/disable behavior
