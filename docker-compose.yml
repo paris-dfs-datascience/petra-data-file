@@ -15,7 +15,25 @@ services:
     env_file:
       - .env
     environment:
-      ENABLE_UI: "true"
+      ENABLE_UI: "false"
       LOCAL_WORKDIR: /app/data/tmp
       APP_ENV: development
+    restart: unless-stopped
+
+  petra_vision_frontend:
+    build:
+      context: ./frontend
+      dockerfile: docker/AppDevDockerfile
+    container_name: petra_vision_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_APP_NAME: Petra Vision
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_PREFIX: /api/v1
+    depends_on:
+      - petra_vision_api
     restart: unless-stopped

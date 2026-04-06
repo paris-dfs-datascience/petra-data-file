@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    ENABLE_UI: bool = True
+    ENABLE_UI: bool = False
 
     OPENAI_API_KEY: str | None = Field(
         default=None,

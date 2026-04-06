@@ -6,7 +6,6 @@ from pathlib import Path
 import typer
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from src.api.errors import register_exception_handlers
 from src.api.middleware import register_middleware
@@ -31,26 +30,22 @@ def create_app() -> FastAPI:
     app.include_router(validations.router, prefix=settings.API_PREFIX)
     app.include_router(rules.router, prefix=settings.API_PREFIX)
 
-    if settings.ENABLE_UI:
-        from src.ui.router import build_ui_router
-
-        ui_static_dir = Path(__file__).resolve().parent / "ui" / "static"
-        app.mount("/ui-static", StaticFiles(directory=str(ui_static_dir)), name="ui-static")
-        app.include_router(build_ui_router(settings))
-
-    if not settings.ENABLE_UI:
-        @app.get("/")
-        async def root() -> JSONResponse:
-            return JSONResponse(
-                content={
-                    "service": settings.APP_NAME,
-                    "docs": "/docs",
-                    "api_prefix": settings.API_PREFIX,
-                    "runtime_mode": "ephemeral",
-                    "persistence": "disabled",
-                    "ui_enabled": settings.ENABLE_UI,
-                }
-            )
+    # Deprecated: the legacy built-in UI under src/ui is no longer mounted by the backend.
+    # The supported operator UI now lives in the separate React frontend under frontend/.
+    # ENABLE_UI is kept only for backward-compatible configuration parsing and is ignored here.
+    @app.get("/")
+    async def root() -> JSONResponse:
+        return JSONResponse(
+            content={
+                "service": settings.APP_NAME,
+                "docs": "/docs",
+                "api_prefix": settings.API_PREFIX,
+                "runtime_mode": "ephemeral",
+                "persistence": "disabled",
+                "ui_enabled": False,
+                "legacy_ui_deprecated": True,
+            }
+        )
 
     return app
 

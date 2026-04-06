@@ -2,7 +2,7 @@
 
 A FastAPI service to upload a PDF, extract its contents with `pdfplumber`, and keep a real analysis stage built from that extracted content and the selected validation rules.
 
-The same run can be reviewed in the UI through tabs that separate the process into three views:
+The same run can be reviewed in the React frontend through tabs that separate the process into three views:
 
 - **Original PDF**
 - **Extracted Text and Tables**
@@ -29,7 +29,15 @@ The same run can be reviewed in the UI through tabs that separate the process in
    - Choose providers with `TEXT_PROVIDER` and `VISION_PROVIDER` using `openai` or `claude`.
    - For Claude, configure `ANTHROPIC_API_KEY` (the app also accepts `ANTHROPIC_AI_API_KEY` and `ANTROPIC_AI_API_KEY`).
    - Optional tunables in `config/app.yaml`.
-   - Temporary workspace behavior is controlled with `LOCAL_WORKDIR`.
+- Temporary workspace behavior is controlled with `LOCAL_WORKDIR`.
+
+### Frontend
+
+The supported UI now lives in the separate React app under `frontend/`.
+
+- the legacy built-in backend UI under `src/ui/` is deprecated and no longer mounted
+- the backend root `/` now returns a JSON service descriptor only
+- use the standalone frontend service for operator workflows
 
 ### Ephemeral runtime
 
@@ -37,7 +45,7 @@ The service does not persist uploaded PDFs, validation runs, or feedback records
 
 - uploaded PDFs are copied into a temporary working directory only for the duration of the analysis
 - rendered page images are temporary and removed after use
-- the built-in UI previews the original PDF from the browser's local file object, not from a server-side public URL
+- the React frontend previews the original PDF from the browser's local file object, not from a server-side public URL
 
 3. **Run CLI (one-off PDF validation)**
    python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
@@ -46,43 +54,26 @@ The service does not persist uploaded PDFs, validation runs, or feedback records
    Then use the versioned API under `/api/v1`.
    Main extraction route: `POST /api/v1/validations` with `multipart/form-data`:
    - field `pdf`: your PDF file
-   - field `rules_json`: selected validation rules sent from the UI
+   - field `rules_json`: selected validation rules sent from the frontend
 
-5. **Run with Docker Compose**
+5. **Run Frontend**
+   cd frontend
+   npm install
+   npm run dev
+
+6. **Run with Docker Compose**
    docker compose up --build
 
-The compose file starts a single service:
+The compose file starts two services:
 
 - `petra_vision_api`
-
-## Optional UI
-
-The service can expose a lightweight built-in UI at `/`.
-
-- `ENABLE_UI=true`
-  - `/` renders the Tailwind-based UI
-- `ENABLE_UI=false`
-  - `/` returns the JSON service descriptor instead
-
-The UI files are organized under:
-
-- `src/ui/templates/`
-- `src/ui/static/`
-
-When enabled, the UI presents the workflow in tabs so the same uploaded document can be reviewed as one continuous process:
-
-- `Original PDF`
-  - inspect the uploaded source document from the browser-local preview
-- `Extracted Text`
-  - review the page-by-page text and tables recovered by `pdfplumber`
-- `Analysis`
-  - inspect the analysis produced from the extracted text and tables, including rule assessments and page observations
+- `petra_vision_frontend`
 
 ---
 
 ## Output format
 
-The pipeline returns results grouped by **page**, and it also returns a dedicated analysis section built from the extracted text and tables. The UI surfaces these parts in separate tabs so the original PDF, the extraction, and the analysis can be compared side by side during the same review:
+The pipeline returns results grouped by **page**, and it also returns a dedicated analysis section built from the extracted text and tables. The React frontend surfaces these parts in separate tabs so the original PDF, the extraction, and the analysis can be compared side by side during the same review:
 
 {
   "document_id": "sample_20260326T140100",
@@ -147,13 +138,14 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   - vision provider selection via `VISION_PROVIDER`
   - OpenAI or Claude model selection
   - temporary workspace location via `LOCAL_WORKDIR`
-  - UI enable/disable behavior
+  - legacy `ENABLE_UI` parsing for backward compatibility only; the backend no longer mounts the built-in UI
 
 ## Notes
 
 - This service extracts PDF content with `pdfplumber` and uses that extracted material as the input to a separate analysis stage.
 - The service runs without persistent storage. Uploaded PDFs and rendered page images are removed after analysis.
-- The UI is designed to expose the process in tabs so operators can review the source PDF, the extracted output, and the resulting analysis independently.
+- The legacy backend UI under `src/ui/` is deprecated and no longer served by FastAPI.
+- The supported operator interface is the separate React frontend under `frontend/`.
 - Ensure you have permission to process the uploaded documents.
 
 ---

@@ -1,0 +1,110 @@
+export type AnalysisType = "text" | "vision";
+
+export type WorkspaceTabKey = "source" | "extracted" | "text-analysis" | "visual-analysis";
+
+export type StatusTone = "neutral" | "working" | "success" | "error";
+
+export interface RuleDefinition {
+  id: string;
+  name: string;
+  analysis_type: AnalysisType;
+  query: string;
+  description?: string | null;
+  acceptance_criteria?: string | null;
+  severity?: string | null;
+}
+
+export interface RulesResponse {
+  rules: RuleDefinition[];
+}
+
+export interface ExtractedTable {
+  index: number;
+  rows: string[][];
+}
+
+export interface PageExtraction {
+  page: number;
+  text: string;
+  tables: ExtractedTable[];
+  char_count: number;
+}
+
+export interface AnalysisMetric {
+  label: string;
+  value: string;
+  detail?: string | null;
+}
+
+export interface AnalysisCitation {
+  page: number;
+  evidence: string;
+}
+
+export interface RuleAssessment {
+  rule_id: string;
+  rule_name: string;
+  analysis_type: AnalysisType;
+  execution_status: string;
+  verdict: string;
+  summary: string;
+  reasoning: string;
+  findings: string[];
+  citations: AnalysisCitation[];
+  matched_pages: number[];
+  notes: string[];
+}
+
+export interface PageRuleAssessment {
+  page: number;
+  rule_id: string;
+  rule_name: string;
+  analysis_type: AnalysisType;
+  execution_status: string;
+  verdict: string;
+  summary: string;
+  reasoning: string;
+  findings: string[];
+  citations: AnalysisCitation[];
+  notes: string[];
+}
+
+export interface PageObservation {
+  page: number;
+  observations: string[];
+}
+
+export interface DocumentAnalysis {
+  overview: AnalysisMetric[];
+  selected_rule_count: number;
+  text_rule_count: number;
+  vision_rule_count: number;
+  rule_assessments: RuleAssessment[];
+  text_page_results: PageRuleAssessment[];
+  visual_page_results: PageRuleAssessment[];
+  page_observations: PageObservation[];
+}
+
+export interface DocumentValidationResponse {
+  document_id: string;
+  page_count: number;
+  source_filename?: string | null;
+  analysis: DocumentAnalysis;
+  pages: PageExtraction[];
+}
+
+export interface ValidationJobResponse {
+  job_id: string;
+  status: string;
+  message: string;
+  progress_current: number;
+  progress_total: number;
+  error?: string | null;
+  result?: DocumentValidationResponse | null;
+}
+
+export interface WorkspaceStatus {
+  label: string;
+  tone: StatusTone;
+  isLoading: boolean;
+}
