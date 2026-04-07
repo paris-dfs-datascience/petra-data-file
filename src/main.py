@@ -12,6 +12,7 @@ from src.api.errors import register_exception_handlers
 from src.api.middleware import register_middleware
 from src.api.routers import auth, documents, health, rules, validations
 from src.core.config import get_settings, load_app_yaml, project_paths
+from src.core.database import init_database
 from src.core.logging import configure_logging
 from src.services.validation_service import ValidationService
 
@@ -22,6 +23,7 @@ cli = typer.Typer(help="Petra Vision service CLI")
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging()
+    init_database()
     app = FastAPI(title=settings.APP_NAME)
     register_middleware(app)
     register_exception_handlers(app)
@@ -64,6 +66,7 @@ app = create_app()
 
 
 def _run_pipeline(pdf_path: str) -> dict:
+    init_database()
     service = ValidationService()
     return service.validate_document(pdf_path=pdf_path)
 
