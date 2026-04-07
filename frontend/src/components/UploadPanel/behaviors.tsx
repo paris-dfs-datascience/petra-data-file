@@ -23,12 +23,6 @@ export function useUploadPanelBehavior({ isBusy, onFileSelected }: Pick<UploadPa
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
-  const openFilePicker = () => {
-    if (!isBusy) {
-      inputRef.current?.click();
-    }
-  };
-
   const handleInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (isPdfFile(file)) {
@@ -76,6 +70,5 @@ export function useUploadPanelBehavior({ isBusy, onFileSelected }: Pick<UploadPa
     handleDragOver,
     handleDrop,
     handleInputChange,
-    openFilePicker,
   };
 }
