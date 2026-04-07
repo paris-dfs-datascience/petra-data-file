@@ -1,7 +1,13 @@
+import { useState } from "react";
+
+import { FeedbackModal } from "@/components/FeedbackModal";
+
 import { getAnalysisTypeClasses, getVerdictClasses, type RuleResultCardProps } from "./behaviors";
 
 
-export function RuleResultCard({ item }: RuleResultCardProps) {
+export function RuleResultCard({ item, documentId, sourceFilename }: RuleResultCardProps) {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
   return (
     <article className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -16,6 +22,16 @@ export function RuleResultCard({ item }: RuleResultCardProps) {
             {item.matched_pages.length} page match{item.matched_pages.length === 1 ? "" : "es"}
           </span>
         ) : null}
+        <button
+          type="button"
+          onClick={() => setFeedbackOpen(true)}
+          className="ml-auto rounded-full bg-slate-100 p-2 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+          title="Submit feedback on this assessment"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4">
+            <path d="M2.75 2a.75.75 0 0 0-.75.75v10.5a.75.75 0 0 0 1.5 0v-3.5h3.75l.25 1h4.5a.75.75 0 0 0 .75-.75v-5a.75.75 0 0 0-.75-.75H8.75L8.5 3H3.5V2.75A.75.75 0 0 0 2.75 2Z" />
+          </svg>
+        </button>
       </div>
 
       <p className="mt-4 text-sm font-medium text-slate-900">{item.summary}</p>
@@ -59,6 +75,22 @@ export function RuleResultCard({ item }: RuleResultCardProps) {
           </ul>
         </div>
       ) : null}
+
+      <FeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        payload={{
+          document_id: documentId || "",
+          source_filename: sourceFilename,
+          page: item.page ?? null,
+          rule_id: item.rule_id,
+          rule_name: item.rule_name,
+          analysis_type: item.analysis_type,
+          verdict: item.verdict,
+          summary: item.summary,
+          reasoning: item.reasoning,
+        }}
+      />
     </article>
   );
 }

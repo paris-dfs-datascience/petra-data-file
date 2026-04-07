@@ -70,12 +70,12 @@ class ValidationJobService:
         if job is None:
             return
 
-        service = ValidationService()
-        selected_rules = service.rule_service.load_rules(rules_json_str=rules_json_str)
-        text_rules = [rule for rule in selected_rules if rule.get("analysis_type", "text") == "text"]
-        total_steps = max(1, len(text_rules))
-
         try:
+            service = ValidationService()
+            selected_rules = service.rule_service.load_rules(rules_json_str=rules_json_str)
+            text_rules = [rule for rule in selected_rules if rule.get("analysis_type", "text") == "text"]
+            total_steps = max(1, len(text_rules))
+
             with job.lock:
                 job.status = "running"
                 job.message = "Extracting PDF"

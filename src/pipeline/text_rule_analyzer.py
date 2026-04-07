@@ -181,15 +181,21 @@ class TextRuleAnalyzer:
         try:
             provider = build_text_provider(self.settings)
         except ValueError as exc:
+            error_message = str(exc)
+            skipped_page_results = [
+                _build_skipped_result(rule, error_message, page=max(1, page.get("page", 1)))
+                for rule in text_rules
+                for page in (pages[:1] or [{"page": 1}])
+            ]
             return {
                 "rule_results": {
                     rule.get("id", ""): _build_skipped_result(
                         rule,
-                        str(exc),
+                        error_message,
                     )
                     for rule in text_rules
                 },
-                "page_results": [],
+                "page_results": skipped_page_results,
             }
         results: dict[str, dict] = {}
         page_results: list[dict] = []

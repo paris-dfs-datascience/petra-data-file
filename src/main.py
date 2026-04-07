@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from src.api.errors import register_exception_handlers
 from src.api.middleware import register_middleware
-from src.api.routers import auth, health, rules, validations
+from src.api.routers import auth, export, feedback, health, rules, validations
 from src.core.config import get_settings
 from src.core.logging import configure_logging
 from src.services.validation_service import ValidationService
@@ -29,6 +29,8 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix=settings.API_PREFIX)
     app.include_router(validations.router, prefix=settings.API_PREFIX)
     app.include_router(rules.router, prefix=settings.API_PREFIX)
+    app.include_router(feedback.router, prefix=settings.API_PREFIX)
+    app.include_router(export.router, prefix=settings.API_PREFIX)
 
     # Deprecated: the legacy built-in UI under src/ui is no longer mounted by the backend.
     # The supported operator UI now lives in the separate React frontend under frontend/.

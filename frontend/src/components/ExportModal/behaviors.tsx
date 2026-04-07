@@ -1,0 +1,112 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { DocumentAnalysis } from "@/types/api";
+
+
+export interface ExportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  documentId: string | null;
+  sourceFilename: string | null;
+  pageCount: number;
+  analysis: DocumentAnalysis | null;
+}
+
+type ExportStage = "idle" | "exporting" | "done" | "error";
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api/v1";
+
+export function useExportModalBehavior({ isOpen, onClose, documentId, sourceFilename, pageCount, analysis }: ExportModalProps) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const [coverText, setCoverText] = useState("");
+  const [stage, setStage] = useState<ExportStage>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!isOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleClose = () => {
+      onClose();
+    };
+    dialog.addEventListener("close", handleClose);
+    return () => dialog.removeEventListener("close", handleClose);
+  }, [onClose]);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStage("idle");
+      setErrorMsg("");
+    }
+  }, [isOpen]);
+
+  const handleExport = useCallback(async () => {
+    if (!analysis || !documentId) return;
+
+    setStage("exporting");
+    setErrorMsg("");
+
+    try {
+      const body = {
+        document_id: documentId,
+        source_filename: sourceFilename,
+        page_count: pageCount,
+        cover_sheet_text: coverText,
+        analysis,
+      };
+
+      const response = await fetch(`${API_BASE_URL}${API_PREFIX}/export/pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Export failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (sourceFilename || "report").replace(/\.pdf$/i, "");
+      a.download = `${safeName}-audit-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setStage("done");
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Export failed.");
+      setStage("error");
+    }
+  }, [analysis, documentId, sourceFilename, pageCount, coverText, onClose]);
+
+  return {
+    dialogRef,
+    coverText,
+    setCoverText,
+    stage,
+    errorMsg,
+    handleExport,
+  };
+}

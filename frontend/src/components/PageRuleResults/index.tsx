@@ -4,7 +4,7 @@ import { RuleResultCard } from "@/components/RuleResultCard";
 import { getPageResultsHeading, groupItemsByPage, type PageRuleResultsProps } from "./behaviors";
 
 
-export function PageRuleResults({ analysisType, emptyMessage, items }: PageRuleResultsProps) {
+export function PageRuleResults({ analysisType, emptyMessage, items, documentId, sourceFilename }: PageRuleResultsProps) {
   if (!items.length) {
     return (
       <article className="rounded-[1.5rem] border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -31,7 +31,12 @@ export function PageRuleResults({ analysisType, emptyMessage, items }: PageRuleR
 
           <div className="mt-4 space-y-4">
             {group.items.map((item) => (
-              <RuleResultCard key={`${analysisType}-${group.page}-${item.rule_id}`} item={item} />
+              <RuleResultCard
+                key={`${analysisType}-${group.page}-${item.rule_id}`}
+                item={item}
+                documentId={documentId}
+                sourceFilename={sourceFilename}
+              />
             ))}
           </div>
         </section>
