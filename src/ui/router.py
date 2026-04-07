@@ -31,8 +31,7 @@ def build_ui_router(settings: Settings) -> APIRouter:
         )
         html = html.replace("{{ app_name }}", settings.APP_NAME)
         html = html.replace("{{ api_prefix }}", settings.API_PREFIX)
-        html = html.replace("{{ storage_backend }}", settings.STORAGE_BACKEND)
-        html = html.replace("{{ database_backend }}", settings.DATABASE_BACKEND)
+        html = html.replace("{{ runtime_mode }}", "Ephemeral")
         html = html.replace("{{ ui_assets_version }}", asset_version)
         return HTMLResponse(content=html)
 

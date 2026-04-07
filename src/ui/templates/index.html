@@ -37,7 +37,7 @@
                         {{ app_name }}
                     </h1>
                     <p class="mt-4 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                        Upload a PDF, inspect the extracted text page by page, and review text-analysis results as they arrive.
+                        Upload a PDF, inspect the extracted text page by page, and review text and visual analysis without persisting the document on the server.
                     </p>
                 </div>
                 <div class="grid gap-3 rounded-3xl bg-slate-950 px-5 py-5 text-sm text-slate-200">
@@ -46,12 +46,12 @@
                         <code class="rounded bg-white/10 px-2 py-1 text-xs">{{ api_prefix }}</code>
                     </div>
                     <div class="flex items-center justify-between border-b border-white/10 pb-3">
-                        <span class="text-slate-400">Storage</span>
-                        <span class="font-medium text-white">{{ storage_backend }}</span>
+                        <span class="text-slate-400">Runtime</span>
+                        <span class="font-medium text-white">{{ runtime_mode }}</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-slate-400">Database</span>
-                        <span class="font-medium text-white">{{ database_backend }}</span>
+                        <span class="text-slate-400">Persistence</span>
+                        <span class="font-medium text-white">Disabled</span>
                     </div>
                 </div>
             </div>
@@ -95,7 +95,7 @@
                             </svg>
                         </div>
                         <h3 class="mt-4 text-base font-semibold text-slate-900">Drop PDF here</h3>
-                        <p class="mt-2 max-w-md text-sm text-slate-500">or click to select a file. The uploaded PDF is parsed locally with pdfplumber.</p>
+                        <p class="mt-2 max-w-md text-sm text-slate-500">or click to select a file. The uploaded PDF is processed ephemerally and discarded after analysis.</p>
                         <span class="mt-5 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white">Choose PDF</span>
                     </label>
 

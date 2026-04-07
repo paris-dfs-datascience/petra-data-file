@@ -123,7 +123,6 @@ def build_document_result(
     document_id: str,
     pages: list[dict],
     source_filename: str | None = None,
-    source_pdf_url: str | None = None,
     selected_rules: list[dict] | None = None,
     rule_assessments: list[dict] | None = None,
     text_page_results: list[dict] | None = None,
@@ -133,7 +132,6 @@ def build_document_result(
         document_id=document_id,
         page_count=len(pages),
         source_filename=source_filename,
-        source_pdf_url=source_pdf_url,
         analysis=build_document_analysis(
             pages,
             selected_rules=selected_rules,

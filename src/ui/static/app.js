@@ -23,6 +23,8 @@
     let currentDocumentId = null;
     let currentJobId = null;
     let currentPollTimer = null;
+    let currentSourcePreviewUrl = null;
+    let currentSourceFilename = null;
     let availableRules = [];
 
     function escapeHtml(value) {
@@ -147,11 +149,13 @@
     }
 
     function renderSourceTab(data) {
-        if (!data || !data.source_pdf_url) {
+        const previewUrl = currentSourcePreviewUrl;
+        const sourceFilename = (data && data.source_filename) || currentSourceFilename || "Source PDF";
+        if (!previewUrl) {
             sourceTabEl.innerHTML = `
                 <article class="rounded-[1.75rem] border border-slate-200 bg-white p-10 text-center">
                     <h2 class="text-lg font-semibold text-slate-900">Original PDF unavailable</h2>
-                    <p class="mt-2 text-sm text-slate-500">A public URL is not available for this storage backend.</p>
+                    <p class="mt-2 text-sm text-slate-500">Upload a PDF to preview the local browser copy here.</p>
                 </article>
             `;
             return;
@@ -161,14 +165,14 @@
             <div class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3">
                     <div>
-                        <p class="text-sm font-semibold text-slate-900">${escapeHtml(data.source_filename || "Source PDF")}</p>
-                        <p class="text-xs text-slate-500">${escapeHtml(data.source_pdf_url)}</p>
+                        <p class="text-sm font-semibold text-slate-900">${escapeHtml(sourceFilename)}</p>
+                        <p class="text-xs text-slate-500">Local browser preview</p>
                     </div>
-                    <a href="${escapeHtml(data.source_pdf_url)}" target="_blank" rel="noreferrer" class="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                    <a href="${escapeHtml(previewUrl)}" target="_blank" rel="noreferrer" class="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
                         Open PDF
                     </a>
                 </div>
-                <iframe src="${escapeHtml(data.source_pdf_url)}" class="h-[900px] w-full rounded-[1.5rem] border border-slate-200 bg-white"></iframe>
+                <iframe src="${escapeHtml(previewUrl)}" class="h-[900px] w-full rounded-[1.5rem] border border-slate-200 bg-white"></iframe>
             </div>
         `;
     }
@@ -431,8 +435,14 @@
         if (!file) return;
         stopPolling();
         currentJobId = null;
+        if (currentSourcePreviewUrl) {
+            URL.revokeObjectURL(currentSourcePreviewUrl);
+        }
+        currentSourcePreviewUrl = URL.createObjectURL(file);
+        currentSourceFilename = file.name;
         setBusy(true, `Uploading ${file.name}`);
         documentIdEl.textContent = "";
+        renderSourceTab({ source_filename: file.name });
         const formData = new FormData();
         formData.append("pdf", file);
         formData.append("rules_json", JSON.stringify({ rules: getSelectedRules() }));
@@ -528,4 +538,9 @@
     renderAnalysisTabs(null);
     setActiveTab("source");
     fetchRules();
+    window.addEventListener("beforeunload", function () {
+        if (currentSourcePreviewUrl) {
+            URL.revokeObjectURL(currentSourcePreviewUrl);
+        }
+    });
 })();

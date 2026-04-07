@@ -9,12 +9,6 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class PathsConfig(BaseModel):
-    uploads_dir: str = "data/uploads"
-    indexes_dir: str = "data/indexes"
-    reports_dir: str = "data/reports"
-
-
 class PdfConfig(BaseModel):
     dpi: int = 300
     image_format: str = "png"
@@ -43,7 +37,6 @@ class ReportConfig(BaseModel):
 
 class AppYaml(BaseModel):
     app: dict = {"project_name": "petra-vision"}
-    paths: PathsConfig = PathsConfig()
     pdf: PdfConfig = PdfConfig()
     vision: VisionConfig = VisionConfig()
     report: ReportConfig = ReportConfig()
@@ -56,7 +49,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    ENABLE_UI: bool = True
+    ENABLE_UI: bool = False
 
     OPENAI_API_KEY: str | None = Field(
         default=None,
@@ -80,15 +73,6 @@ class Settings(BaseSettings):
     CLAUDE_TEXT_MAX_TOKENS: int = 1600
     CLAUDE_VISION_MAX_TOKENS: int = 1600
 
-    DATABASE_BACKEND: str = "sqlite"
-    DATABASE_URL: str | None = None
-    SQLITE_PATH: str = "data/petra.db"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "petra"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-
     JWT_SECRET_KEY: str = "change-me"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -96,18 +80,7 @@ class Settings(BaseSettings):
     APP_ADMIN_EMAIL: str = "admin@example.com"
     APP_ADMIN_PASSWORD: str = "admin"
 
-    STORAGE_BACKEND: str = "local"
-    PUBLIC_DIR: str = "public"
     LOCAL_WORKDIR: str = "data/tmp"
-
-    S3_BUCKET: str | None = None
-    S3_REGION: str | None = None
-    S3_ENDPOINT_URL: str | None = None
-    S3_ACCESS_KEY_ID: str | None = None
-    S3_SECRET_ACCESS_KEY: str | None = None
-
-    AZURE_BLOB_CONNECTION_STRING: str | None = None
-    AZURE_BLOB_CONTAINER: str | None = None
 
     @field_validator("TEXT_PROVIDER", "VISION_PROVIDER", mode="before")
     @classmethod
@@ -129,27 +102,7 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def build_database_url(settings: Settings) -> str:
-    if settings.DATABASE_URL:
-        return settings.DATABASE_URL
-    if settings.DATABASE_BACKEND == "postgresql":
-        return (
-            f"postgresql+psycopg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
-            f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-        )
-    return f"sqlite:///{settings.SQLITE_PATH}"
-
-
 @lru_cache(maxsize=1)
 def load_app_yaml(path: str = "config/app.yaml") -> AppYaml:
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     return AppYaml(**data)
-
-
-def project_paths(app: AppYaml) -> dict[str, Path]:
-    root = Path(".").resolve()
-    return {
-        "uploads": root / app.paths.uploads_dir,
-        "indexes": root / app.paths.indexes_dir,
-        "reports": root / app.paths.reports_dir,
-    }
