@@ -11,7 +11,9 @@ function buildApiUrl(path: string): string {
 
 async function buildAuthorizedHeaders(initialHeaders?: HeadersInit): Promise<Headers> {
   const headers = new Headers(initialHeaders);
-  headers.set("Accept", "application/json");
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
   headers.set("Authorization", `Bearer ${await acquireApiAccessToken()}`);
   return headers;
 }
@@ -61,8 +63,30 @@ export async function apiPost<T>(path: string): Promise<T> {
 export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await buildAuthorizedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   return parseResponse<T>(response);
+}
+
+export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
+  const response = await fetch(buildApiUrl(path), {
+    method: "POST",
+    headers: await buildAuthorizedHeaders({ "Content-Type": "application/json", Accept: "application/pdf" }),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status}).`;
+    try {
+      const payload = (await response.json()) as { error?: { message?: string }; detail?: string };
+      message = payload.error?.message || payload.detail || message;
+    } catch {
+      const text = await response.text();
+      message = text || message;
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
 }

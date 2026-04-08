@@ -7,7 +7,7 @@ export function ExportModal(props: ExportModalProps) {
   return (
     <dialog
       ref={dialogRef}
-      className="w-full max-w-lg rounded-[1.5rem] border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-950/40"
+      className="fixed top-1/2 left-1/2 m-0 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-950/40"
     >
       <div className="p-6">
         <h2 className="text-lg font-semibold text-slate-950">Export Audit Report</h2>

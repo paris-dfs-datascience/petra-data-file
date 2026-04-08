@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -21,6 +22,22 @@ _VERDICT_LABELS = {
     "not_applicable": "N/A",
     "skipped": "SKIPPED",
 }
+
+_PDF_CHAR_REPLACEMENTS = str.maketrans(
+    {
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2022": "-",
+        "\u2026": "...",
+        "\u00a0": " ",
+    }
+)
 
 
 class _ReportPdf(FPDF):
@@ -48,6 +65,15 @@ def _verdict_label(verdict: str) -> str:
     return _VERDICT_LABELS.get(verdict, verdict.upper())
 
 
+def _pdf_text(value: Any, fallback: str = "") -> str:
+    if value is None:
+        text = fallback
+    else:
+        text = str(value)
+    sanitized = text.translate(_PDF_CHAR_REPLACEMENTS)
+    return sanitized.encode("latin-1", errors="replace").decode("latin-1")
+
+
 def _add_cover_sheet(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
     pdf.add_page()
 
@@ -67,14 +93,14 @@ def _add_cover_sheet(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
     pdf.set_text_color(71, 85, 105)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     meta_lines = [
-        f"Document: {req.source_filename or 'Unknown'}",
-        f"Document ID: {req.document_id}",
+        f"Document: {_pdf_text(req.source_filename, 'Unknown')}",
+        f"Document ID: {_pdf_text(req.document_id)}",
         f"Pages: {req.page_count}",
         f"Generated: {now}",
         f"Rules evaluated: {req.analysis.selected_rule_count}",
     ]
     for line in meta_lines:
-        pdf.cell(0, 7, line, align="C")
+        pdf.cell(0, 7, _pdf_text(line), align="C")
         pdf.ln(7)
 
     # Cover sheet free text
@@ -89,7 +115,7 @@ def _add_cover_sheet(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
         pdf.ln(10)
         pdf.set_font("Helvetica", "", 11)
         pdf.set_text_color(51, 65, 85)  # slate-700
-        pdf.multi_cell(0, 6, req.cover_sheet_text.strip())
+        pdf.multi_cell(0, 6, _pdf_text(req.cover_sheet_text.strip()))
 
 
 def _add_summary_section(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
@@ -109,8 +135,8 @@ def _add_summary_section(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
         pdf.ln(8)
         pdf.set_font("Helvetica", "", 10)
         for metric in analysis.overview:
-            detail = f"  ({metric.detail})" if metric.detail else ""
-            pdf.cell(0, 6, f"{metric.label}: {metric.value}{detail}")
+            detail = f"  ({_pdf_text(metric.detail)})" if metric.detail else ""
+            pdf.cell(0, 6, _pdf_text(f"{metric.label}: {metric.value}{detail}"))
             pdf.ln(6)
         pdf.ln(6)
 
@@ -145,14 +171,14 @@ def _add_assessment_table(pdf: _ReportPdf, assessments: list[RuleAssessmentSchem
         y_start = pdf.get_y()
 
         # Calculate row height based on summary text
-        summary_text = a.summary or "-"
+        summary_text = _pdf_text(a.summary or "-")
         # Estimate lines needed
         summary_width = col_widths[3] - 2
         n_lines = max(1, len(summary_text) // int(summary_width * 0.45) + 1)
         row_h = max(7, n_lines * 5)
 
-        pdf.cell(col_widths[0], row_h, (a.rule_name or a.rule_id)[:35], border=1)
-        pdf.cell(col_widths[1], row_h, a.analysis_type, border=1)
+        pdf.cell(col_widths[0], row_h, _pdf_text(a.rule_name or a.rule_id)[:35], border=1)
+        pdf.cell(col_widths[1], row_h, _pdf_text(a.analysis_type), border=1)
 
         # Color the verdict
         v = a.verdict
@@ -162,7 +188,7 @@ def _add_assessment_table(pdf: _ReportPdf, assessments: list[RuleAssessmentSchem
             pdf.set_text_color(190, 18, 60)  # rose-700
         else:
             pdf.set_text_color(146, 64, 14)  # amber-700
-        pdf.cell(col_widths[2], row_h, _verdict_label(v), border=1)
+        pdf.cell(col_widths[2], row_h, _pdf_text(_verdict_label(v)), border=1)
 
         pdf.set_text_color(15, 23, 42)
         # For summary, use multi_cell inside a clipped area
@@ -217,7 +243,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
     # Rule name + verdict
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(15, 23, 42)
-    name = item.rule_name or item.rule_id
+    name = _pdf_text(item.rule_name or item.rule_id)
     pdf.cell(0, 6, name)
     pdf.ln(6)
 
@@ -230,11 +256,11 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.set_text_color(190, 18, 60)
     else:
         pdf.set_text_color(146, 64, 14)
-    pdf.cell(30, 5, _verdict_label(v))
+    pdf.cell(30, 5, _pdf_text(_verdict_label(v)))
 
     pdf.set_text_color(100, 116, 139)
-    pdf.cell(20, 5, item.analysis_type.upper())
-    pdf.cell(30, 5, item.execution_status.upper())
+    pdf.cell(20, 5, _pdf_text(item.analysis_type.upper()))
+    pdf.cell(30, 5, _pdf_text(item.execution_status.upper()))
     pdf.ln(7)
 
     # Summary
@@ -245,7 +271,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.ln(5)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(71, 85, 105)
-        pdf.multi_cell(0, 5, item.summary)
+        pdf.multi_cell(0, 5, _pdf_text(item.summary))
         pdf.ln(2)
 
     # Reasoning
@@ -256,7 +282,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.ln(5)
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(71, 85, 105)
-        pdf.multi_cell(0, 5, item.reasoning)
+        pdf.multi_cell(0, 5, _pdf_text(item.reasoning))
         pdf.ln(2)
 
     # Findings
@@ -268,7 +294,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(71, 85, 105)
         for finding in item.findings:
-            pdf.multi_cell(0, 5, f"  - {finding}")
+            pdf.multi_cell(0, 5, _pdf_text(f"  - {finding}"))
             pdf.ln(1)
         pdf.ln(2)
 
@@ -281,7 +307,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(71, 85, 105)
         for cit in item.citations:
-            pdf.multi_cell(0, 5, f"  Page {cit.page}: {cit.evidence}")
+            pdf.multi_cell(0, 5, _pdf_text(f"  Page {cit.page}: {cit.evidence}"))
             pdf.ln(1)
         pdf.ln(2)
 
@@ -294,7 +320,7 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(71, 85, 105)
         for note in item.notes:
-            pdf.multi_cell(0, 5, f"  - {note}")
+            pdf.multi_cell(0, 5, _pdf_text(f"  - {note}"))
             pdf.ln(1)
 
     # Divider
@@ -309,7 +335,7 @@ async def export_pdf(req: ExportPdfRequest) -> StreamingResponse:
     pdf.alias_nb_pages()
     pdf.set_auto_page_break(auto=True, margin=20)
 
-    title = f"Audit Report - {req.source_filename or req.document_id}"
+    title = _pdf_text(f"Audit Report - {req.source_filename or req.document_id}")
     pdf.doc_title = title
 
     # 1. Cover sheet

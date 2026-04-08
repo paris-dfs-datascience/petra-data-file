@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { apiPostBlob } from "@/services/apiClient";
 import type { DocumentAnalysis } from "@/types/api";
 
 
@@ -13,9 +14,6 @@ export interface ExportModalProps {
 }
 
 type ExportStage = "idle" | "exporting" | "done" | "error";
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api/v1";
 
 export function useExportModalBehavior({ isOpen, onClose, documentId, sourceFilename, pageCount, analysis }: ExportModalProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -68,17 +66,7 @@ export function useExportModalBehavior({ isOpen, onClose, documentId, sourceFile
         analysis,
       };
 
-      const response = await fetch(`${API_BASE_URL}${API_PREFIX}/export/pdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Export failed (${response.status})`);
-      }
-
-      const blob = await response.blob();
+      const blob = await apiPostBlob("/export/pdf", body);
       const url = URL.createObjectURL(blob);
 
       // Trigger download

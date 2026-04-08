@@ -21,7 +21,7 @@ export function FeedbackModal(props: FeedbackModalProps) {
     <dialog
       ref={dialogRef}
       onClose={handleClose}
-      className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl backdrop:bg-black/40"
+      className="fixed top-1/2 left-1/2 m-0 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl backdrop:bg-black/40"
     >
       {submitted ? (
         <p className="text-sm font-medium text-emerald-600">Feedback submitted. Thank you!</p>
