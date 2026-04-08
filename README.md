@@ -8,6 +8,8 @@ The same run can be reviewed in the React frontend through tabs that separate th
 - **Extracted Text and Tables**
 - **Analysis Derived From the Extraction**
 
+The operator workflow is protected by Microsoft Entra ID. The React frontend requires a successful Microsoft sign-in, and the FastAPI backend accepts only Azure access tokens issued by the configured tenant, audience, scope, and approved frontend app registration.
+
 ---
 
 ## Quick Start
@@ -25,9 +27,16 @@ The same run can be reviewed in the React frontend through tabs that separate th
    # Install dependencies
    python -m pip install -r requirements.txt
 2. **Configure**
-   - Copy `.env.example` to `.env`.
+   - Copy `env.example` to `.env`.
+   - Copy `frontend/.env.example` to `frontend/.env`.
    - Choose providers with `TEXT_PROVIDER` and `VISION_PROVIDER` using `openai` or `claude`.
    - For Claude, configure `ANTHROPIC_API_KEY` (the app also accepts `ANTHROPIC_AI_API_KEY` and `ANTROPIC_AI_API_KEY`).
+  - Configure Microsoft Entra ID values for the backend API and frontend SPA. The repository templates are already set for:
+     - tenant `dce78d1e-e927-4f5a-8d06-0035eaf8cc08`
+     - frontend app `fa60a728-3038-450f-ba94-8e89667048a4`
+     - API app `f4cb04ea-3fd2-4d6d-83be-a08bb993f9e9`
+     - API scope `api://f4cb04ea-3fd2-4d6d-83be-a08bb993f9e9/access_as_user`
+     - accepted access token versions `1.0,2.0` in backend validation, so the API works whether your Entra app manifest still emits v1 tokens or has already been moved to v2
    - Optional tunables in `config/app.yaml`.
 - Temporary workspace behavior is controlled with `LOCAL_WORKDIR`.
 
@@ -60,6 +69,8 @@ The service does not persist uploaded PDFs, validation runs, or feedback records
    cd frontend
    npm install
    npm run dev
+
+   The browser will show a Microsoft sign-in gate before the workspace loads.
 
 6. **Run with Docker Compose**
    docker compose up --build
@@ -137,6 +148,7 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   - text provider selection via `TEXT_PROVIDER`
   - vision provider selection via `VISION_PROVIDER`
   - OpenAI or Claude model selection
+  - Microsoft Entra ID tenant, audience, scope, and allowed SPA client app IDs
   - temporary workspace location via `LOCAL_WORKDIR`
   - legacy `ENABLE_UI` parsing for backward compatibility only; the backend no longer mounts the built-in UI
 
@@ -144,6 +156,7 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
 
 - This service extracts PDF content with `pdfplumber` and uses that extracted material as the input to a separate analysis stage.
 - The service runs without persistent storage. Uploaded PDFs and rendered page images are removed after analysis.
+- The backend disables public OpenAPI and documentation routes so the API surface is not exposed anonymously.
 - The legacy backend UI under `src/ui/` is deprecated and no longer served by FastAPI.
 - The supported operator interface is the separate React frontend under `frontend/`.
 - Ensure you have permission to process the uploaded documents.

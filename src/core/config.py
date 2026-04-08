@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
@@ -43,7 +43,7 @@ class AppYaml(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", enable_decoding=False)
 
     APP_NAME: str = "Petra Vision"
     APP_ENV: str = "development"
@@ -81,6 +81,15 @@ class Settings(BaseSettings):
     APP_ADMIN_PASSWORD: str = "admin"
 
     LOCAL_WORKDIR: str = "data/tmp"
+    API_ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+
+    AZURE_TENANT_ID: str | None = None
+    AZURE_CLIENT_ID: str | None = None
+    AZURE_AUDIENCE: str | None = None
+    AZURE_REQUIRED_SCOPE: str = "access_as_user"
+    AZURE_ALLOWED_CLIENT_APP_IDS: list[str] = Field(default_factory=list)
+    AZURE_AUTHORITY_HOST: str = "https://login.microsoftonline.com"
+    AZURE_ACCEPTED_TOKEN_VERSIONS: list[Literal["1.0", "2.0"]] = Field(default_factory=lambda: ["1.0", "2.0"])
 
     @field_validator("TEXT_PROVIDER", "VISION_PROVIDER", mode="before")
     @classmethod
@@ -95,6 +104,31 @@ class Settings(BaseSettings):
         if normalized not in provider_aliases:
             raise ValueError(f"Unsupported provider '{value}'. Expected one of: openai, claude.")
         return provider_aliases[normalized]
+
+    @field_validator("API_ALLOWED_ORIGINS", "AZURE_ALLOWED_CLIENT_APP_IDS", "AZURE_ACCEPTED_TOKEN_VERSIONS", mode="before")
+    @classmethod
+    def parse_csv_list(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+        normalized = str(value).strip()
+        if not normalized:
+            return []
+        if normalized.startswith("["):
+            parsed = yaml.safe_load(normalized)
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
+        return [item.strip() for item in normalized.split(",") if item.strip()]
+
+    @property
+    def azure_expected_audiences(self) -> list[str]:
+        audiences: list[str] = []
+        if self.AZURE_CLIENT_ID:
+            audiences.append(self.AZURE_CLIENT_ID)
+        if self.AZURE_AUDIENCE and self.AZURE_AUDIENCE not in audiences:
+            audiences.append(self.AZURE_AUDIENCE)
+        return audiences
 
 
 @lru_cache(maxsize=1)

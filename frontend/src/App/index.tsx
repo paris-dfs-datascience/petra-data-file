@@ -1,3 +1,6 @@
+import { useMsal } from "@azure/msal-react";
+
+import { azurePostLogoutRedirectUri } from "@/auth/config";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -15,6 +18,7 @@ import { useAppBehavior } from "./behaviors";
 
 
 export function App() {
+  const { accounts, instance } = useMsal();
   const {
     activeTab,
     analysis,
@@ -37,12 +41,22 @@ export function App() {
     setNextTab,
   } = useAppBehavior();
 
+  const signedInAccount = instance.getActiveAccount() || accounts[0] || null;
+  const signedInAs = signedInAccount?.name || signedInAccount?.username || null;
+
+  const handleSignOut = async () => {
+    await instance.logoutPopup({
+      account: signedInAccount || undefined,
+      postLogoutRedirectUri: azurePostLogoutRedirectUri,
+    });
+  };
+
   const [exportOpen, setExportOpen] = useState(false);
 
   return (
     <>
     <WorkspaceShell
-      hero={<HeroBanner appName={appName} />}
+      hero={<HeroBanner appName={appName} signedInAs={signedInAs} onSignOut={handleSignOut} />}
       sidebar={
         <RulesSidebar
           rules={availableRules}
