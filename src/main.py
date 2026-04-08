@@ -27,15 +27,18 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        ensure_azure_auth_configured(settings)
+        if settings.AUTH_ENABLED:
+            ensure_azure_auth_configured(settings)
         yield
+
+    app_dependencies = [Depends(require_authenticated_principal)] if settings.AUTH_ENABLED else []
 
     app = FastAPI(
         title=settings.APP_NAME,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
-        dependencies=[Depends(require_authenticated_principal)],
+        dependencies=app_dependencies,
         lifespan=lifespan,
     )
     register_middleware(app)
@@ -62,7 +65,7 @@ def create_app() -> FastAPI:
                 "persistence": "disabled",
                 "ui_enabled": False,
                 "legacy_ui_deprecated": True,
-                "authentication": "microsoft-entra-id",
+                "authentication": "microsoft-entra-id" if settings.AUTH_ENABLED else "disabled",
             }
         )
 

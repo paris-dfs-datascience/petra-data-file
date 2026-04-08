@@ -6,7 +6,7 @@ import {
   type AuthenticationResult,
 } from "@azure/msal-browser";
 
-import { apiTokenRequest, loginRequest, msalConfig } from "@/auth/config";
+import { apiTokenRequest, authEnabled, loginRequest, msalConfig } from "@/auth/config";
 
 
 export const msalInstance = new PublicClientApplication(msalConfig);
@@ -47,6 +47,9 @@ export function initializeMsal(): Promise<void> {
 }
 
 export async function signInWithMicrosoft(): Promise<void> {
+  if (!authEnabled) {
+    return;
+  }
   await initializeMsal();
   const response = await msalInstance.loginPopup(loginRequest);
   if (response.account) {
@@ -55,6 +58,9 @@ export async function signInWithMicrosoft(): Promise<void> {
 }
 
 export async function acquireApiAccessToken(): Promise<string> {
+  if (!authEnabled) {
+    return "";
+  }
   await initializeMsal();
   const account = getPreferredAccount();
   if (!account) {

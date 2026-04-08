@@ -1,4 +1,5 @@
 import { acquireApiAccessToken } from "@/auth/client";
+import { authEnabled } from "@/auth/config";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api/v1";
@@ -14,7 +15,9 @@ async function buildAuthorizedHeaders(initialHeaders?: HeadersInit): Promise<Hea
   if (!headers.has("Accept")) {
     headers.set("Accept", "application/json");
   }
-  headers.set("Authorization", `Bearer ${await acquireApiAccessToken()}`);
+  if (authEnabled) {
+    headers.set("Authorization", `Bearer ${await acquireApiAccessToken()}`);
+  }
   return headers;
 }
 

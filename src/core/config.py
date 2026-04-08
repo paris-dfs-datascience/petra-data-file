@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     APP_DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
     ENABLE_UI: bool = False
+    AUTH_ENABLED: bool = True
 
     OPENAI_API_KEY: str | None = Field(
         default=None,

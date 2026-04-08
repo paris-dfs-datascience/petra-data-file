@@ -1,6 +1,6 @@
 import { useMsal } from "@azure/msal-react";
 
-import { azurePostLogoutRedirectUri } from "@/auth/config";
+import { authEnabled, azurePostLogoutRedirectUri } from "@/auth/config";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -42,9 +42,12 @@ export function App() {
   } = useAppBehavior();
 
   const signedInAccount = instance.getActiveAccount() || accounts[0] || null;
-  const signedInAs = signedInAccount?.name || signedInAccount?.username || null;
+  const signedInAs = authEnabled ? signedInAccount?.name || signedInAccount?.username || null : null;
 
   const handleSignOut = async () => {
+    if (!authEnabled) {
+      return;
+    }
     await instance.logoutPopup({
       account: signedInAccount || undefined,
       postLogoutRedirectUri: azurePostLogoutRedirectUri,
@@ -56,7 +59,7 @@ export function App() {
   return (
     <>
     <WorkspaceShell
-      hero={<HeroBanner appName={appName} signedInAs={signedInAs} onSignOut={handleSignOut} />}
+      hero={<HeroBanner appName={appName} authEnabled={authEnabled} signedInAs={signedInAs} onSignOut={handleSignOut} />}
       sidebar={
         <RulesSidebar
           rules={availableRules}

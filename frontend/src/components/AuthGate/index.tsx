@@ -3,6 +3,7 @@ import { useMemo, useState, type PropsWithChildren } from "react";
 import { InteractionStatus } from "@azure/msal-browser";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 
+import { authEnabled } from "@/auth/config";
 import { signInWithMicrosoft } from "@/auth/client";
 
 
@@ -17,6 +18,10 @@ export function AuthGate({ children }: PropsWithChildren) {
   }, [accounts]);
 
   const isWorking = inProgress !== InteractionStatus.None;
+
+  if (!authEnabled) {
+    return <>{children}</>;
+  }
 
   const handleLogin = async () => {
     setErrorMessage(null);
