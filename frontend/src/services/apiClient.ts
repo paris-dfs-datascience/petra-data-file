@@ -1,8 +1,9 @@
 import { acquireApiAccessToken } from "@/auth/client";
 import { authEnabled } from "@/auth/config";
+import { readEnv } from "@/config/runtime";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api/v1";
+const API_BASE_URL = (readEnv("VITE_API_BASE_URL") || "").replace(/\/$/, "");
+const API_PREFIX = readEnv("VITE_API_PREFIX") || "/api/v1";
 
 
 function buildApiUrl(path: string): string {

@@ -82,6 +82,97 @@ The compose file starts two services:
 
 ---
 
+## Azure Deployment
+
+This repository now includes Azure Infrastructure as Code for:
+
+- `azure.yaml` to orchestrate the workflow with `azd`
+- `infra/main.bicep` to provision Azure Container Apps, Azure Container Registry, and Log Analytics
+- `scripts/entra/sync_apps.py` to create or update the Microsoft Entra SPA and API app registrations in code
+
+### What gets provisioned
+
+- `1` Azure Container Apps environment
+- `1` Azure Container Registry
+- `1` Log Analytics workspace
+- `1` Container App for the FastAPI backend
+- `1` Container App for the React frontend
+- `AcrPull` role assignments so both Container Apps can pull private images from ACR with managed identity
+
+The backend is intentionally public in Azure. With the current frontend architecture, the browser needs a public API URL to call the backend directly. Access is still protected by Microsoft Entra ID and restricted to the configured tenant, audience, scope, and frontend app registration.
+
+### Microsoft Entra automation
+
+The Entra setup described in the project notes is now automated in `scripts/entra/sync_apps.py`.
+
+During `azd up`:
+
+1. the `preprovision` hook creates or updates the backend API app registration and the frontend SPA app registration
+2. it configures the API scope `access_as_user`
+3. it assigns the signed-in user as owner when the current Azure principal supports Microsoft Graph `/me`
+4. it stores the generated tenant/app IDs into the current `azd` environment
+5. after infrastructure provisioning, the `postprovision` hook adds the deployed frontend URL as an SPA redirect URI
+
+If your tenant requires admin consent for delegated API access, that approval still needs to be granted by an administrator after the app registrations are created.
+
+### Frontend runtime config in Azure
+
+The production frontend container no longer depends on baked-in `VITE_*` build arguments for Azure auth or API URLs.
+
+- local Vite development still reads `frontend/.env`
+- the Azure Nginx container writes `runtime-config.js` at startup from container environment variables
+- this lets the same frontend image run in different subscriptions or tenants without rebuilding it for each environment
+- the runtime variable mapping used for provisioning lives in `infra/main.parameters.json`, which is the standard `azd` bridge between `.azure/<env>/.env` and Bicep parameters
+
+### Deploy with azd
+
+Minimum flow:
+
+```bash
+azd env new personal
+azd env set AZURE_LOCATION eastus
+azd env set-secret OPENAI_API_KEY
+azd up
+```
+
+Use `azd env set-secret` for provider API keys so the raw secret does not get passed directly in the command line or stored in plain text in the local `azd` environment file.
+
+Useful optional settings:
+
+```bash
+azd env set TEXT_PROVIDER openai
+azd env set VISION_PROVIDER openai
+azd env set OPENAI_TEXT_MODEL gpt-5.4-mini
+azd env set OPENAI_VISION_MODEL gpt-5.4
+azd env set CLAUDE_TEXT_MODEL claude-sonnet-4-6
+azd env set CLAUDE_VISION_MODEL claude-sonnet-4-6
+azd env set-secret ANTHROPIC_API_KEY
+```
+
+After deployment:
+
+- `azd show` returns the provisioned resources
+- `FRONTEND_ENDPOINT` is the public frontend URL
+- `BACKEND_ENDPOINT` is the public backend URL
+- if you change runtime environment variables later, run `azd provision` or `azd up`; `azd deploy` only updates images/code and does not rewrite Container App environment variables
+
+### Deploy to another environment
+
+The same flow can be repeated for a separate environment:
+
+```bash
+az login
+azd auth login
+azd env new prod
+azd env set AZURE_LOCATION eastus
+azd env set-secret OPENAI_API_KEY
+azd up
+```
+
+The main caveat is Microsoft Entra permissions. If the signed-in principal cannot create app registrations or add owners in the target tenant, the Azure resources may still provision but the Entra automation step will fail until the required tenant permissions are granted.
+
+---
+
 ## Output format
 
 The pipeline returns results grouped by **page**, and it also returns a dedicated analysis section built from the extracted text and tables. The React frontend surfaces these parts in separate tabs so the original PDF, the extraction, and the analysis can be compared side by side during the same review:

@@ -1,0 +1,33 @@
+name: petra-vision
+metadata:
+  template: petra-vision-container-apps
+infra:
+  provider: bicep
+  path: infra
+  module: main
+services:
+  api:
+    project: .
+    language: py
+    host: containerapp
+    resourceName: petra-api
+    docker:
+      path: docker/AppProdDockerfile
+      context: .
+  frontend:
+    project: ./frontend
+    language: js
+    host: containerapp
+    resourceName: petra-frontend
+    docker:
+      path: docker/AppDevProdDockerfile
+      context: .
+hooks:
+  preprovision:
+    - shell: sh
+      run: sh ./scripts/hooks/preprovision.sh
+      platform: posix
+  postprovision:
+    - shell: sh
+      run: sh ./scripts/hooks/postprovision.sh
+      platform: posix

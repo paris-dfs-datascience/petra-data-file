@@ -31,14 +31,11 @@ def create_app() -> FastAPI:
             ensure_azure_auth_configured(settings)
         yield
 
-    app_dependencies = [Depends(require_authenticated_principal)] if settings.AUTH_ENABLED else []
-
     app = FastAPI(
         title=settings.APP_NAME,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
-        dependencies=app_dependencies,
         lifespan=lifespan,
     )
     register_middleware(app)
@@ -46,10 +43,11 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix=settings.API_PREFIX)
     app.include_router(auth.router, prefix=settings.API_PREFIX)
-    app.include_router(validations.router, prefix=settings.API_PREFIX)
-    app.include_router(rules.router, prefix=settings.API_PREFIX)
-    app.include_router(feedback.router, prefix=settings.API_PREFIX)
-    app.include_router(export.router, prefix=settings.API_PREFIX)
+    protected_router_dependencies = [Depends(require_authenticated_principal)] if settings.AUTH_ENABLED else []
+    app.include_router(validations.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(rules.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(feedback.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(export.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
 
     # Deprecated: the legacy built-in UI under src/ui is no longer mounted by the backend.
     # The supported operator UI now lives in the separate React frontend under frontend/.
