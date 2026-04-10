@@ -5,6 +5,8 @@ export interface PageRuleResultsProps {
   analysisType: "text" | "vision";
   items: PageRuleAssessment[];
   emptyMessage: string;
+  documentId: string | null;
+  sourceFilename: string | null;
 }
 
 export function groupItemsByPage(items: PageRuleAssessment[]): Array<{ page: number; items: PageRuleAssessment[] }> {

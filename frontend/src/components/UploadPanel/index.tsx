@@ -13,7 +13,6 @@ export function UploadPanel(props: UploadPanelProps) {
     handleInputChange,
     inputRef,
     isDragActive,
-    openFilePicker,
   } = useUploadPanelBehavior(props);
 
   return (
@@ -32,7 +31,6 @@ export function UploadPanel(props: UploadPanelProps) {
           props.isBusy ? "pointer-events-none opacity-70" : "",
           isDragActive ? "border-teal-500 bg-teal-50" : "border-slate-300 bg-slate-50 hover:border-teal-500 hover:bg-teal-50",
         )}
-        onClick={openFilePicker}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}

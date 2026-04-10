@@ -10,6 +10,7 @@ export interface RuleResultLike {
   findings: string[];
   matched_pages?: number[];
   notes: string[];
+  page?: number;
   reasoning: string;
   rule_id: string;
   rule_name: string;
@@ -19,6 +20,8 @@ export interface RuleResultLike {
 
 export interface RuleResultCardProps {
   item: RuleResultLike;
+  documentId: string | null;
+  sourceFilename: string | null;
 }
 
 export function getVerdictClasses(verdict: string): string {

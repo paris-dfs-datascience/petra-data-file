@@ -1,9 +1,25 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
-const API_PREFIX = import.meta.env.VITE_API_PREFIX || "/api/v1";
+import { acquireApiAccessToken } from "@/auth/client";
+import { authEnabled } from "@/auth/config";
+import { readEnv } from "@/config/runtime";
+
+const API_BASE_URL = (readEnv("VITE_API_BASE_URL") || "").replace(/\/$/, "");
+const API_PREFIX = readEnv("VITE_API_PREFIX") || "/api/v1";
 
 
 function buildApiUrl(path: string): string {
   return `${API_BASE_URL}${API_PREFIX}${path}`;
+}
+
+
+async function buildAuthorizedHeaders(initialHeaders?: HeadersInit): Promise<Headers> {
+  const headers = new Headers(initialHeaders);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (authEnabled) {
+    headers.set("Authorization", `Bearer ${await acquireApiAccessToken()}`);
+  }
+  return headers;
 }
 
 
@@ -25,7 +41,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(buildApiUrl(path));
+  const response = await fetch(buildApiUrl(path), {
+    headers: await buildAuthorizedHeaders(),
+  });
   return parseResponse<T>(response);
 }
 
@@ -33,6 +51,7 @@ export async function apiPostForm<T>(path: string, formData: FormData): Promise<
   const response = await fetch(buildApiUrl(path), {
     method: "POST",
     body: formData,
+    headers: await buildAuthorizedHeaders(),
   });
   return parseResponse<T>(response);
 }
@@ -40,6 +59,38 @@ export async function apiPostForm<T>(path: string, formData: FormData): Promise<
 export async function apiPost<T>(path: string): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
     method: "POST",
+    headers: await buildAuthorizedHeaders(),
   });
   return parseResponse<T>(response);
+}
+
+export async function apiPostJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(buildApiUrl(path), {
+    method: "POST",
+    headers: await buildAuthorizedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+  return parseResponse<T>(response);
+}
+
+export async function apiPostBlob(path: string, body: unknown): Promise<Blob> {
+  const response = await fetch(buildApiUrl(path), {
+    method: "POST",
+    headers: await buildAuthorizedHeaders({ "Content-Type": "application/json", Accept: "application/pdf" }),
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status}).`;
+    try {
+      const payload = (await response.json()) as { error?: { message?: string }; detail?: string };
+      message = payload.error?.message || payload.detail || message;
+    } catch {
+      const text = await response.text();
+      message = text || message;
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
 }

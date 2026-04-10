@@ -4,3 +4,9 @@
 .env
 public
 data
+.azure
+.pytest_cache
+frontend
+scripts
+tests
+DEPLOYMENT_GUIDE.md

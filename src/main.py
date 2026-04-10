@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import json
 from pathlib import Path
 
 import typer
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import JSONResponse
 
+from src.api.deps import require_authenticated_principal
 from src.api.errors import register_exception_handlers
 from src.api.middleware import register_middleware
-from src.api.routers import auth, health, rules, validations
+from src.api.routers import auth, export, feedback, health, rules, validations
+from src.core.azure_auth import ensure_azure_auth_configured
 from src.core.config import get_settings
 from src.core.logging import configure_logging
 from src.services.validation_service import ValidationService
@@ -21,14 +24,30 @@ cli = typer.Typer(help="Petra Vision service CLI")
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging()
-    app = FastAPI(title=settings.APP_NAME)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        if settings.AUTH_ENABLED:
+            ensure_azure_auth_configured(settings)
+        yield
+
+    app = FastAPI(
+        title=settings.APP_NAME,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+    )
     register_middleware(app)
     register_exception_handlers(app)
 
     app.include_router(health.router, prefix=settings.API_PREFIX)
     app.include_router(auth.router, prefix=settings.API_PREFIX)
-    app.include_router(validations.router, prefix=settings.API_PREFIX)
-    app.include_router(rules.router, prefix=settings.API_PREFIX)
+    protected_router_dependencies = [Depends(require_authenticated_principal)] if settings.AUTH_ENABLED else []
+    app.include_router(validations.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(rules.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(feedback.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
+    app.include_router(export.router, prefix=settings.API_PREFIX, dependencies=protected_router_dependencies)
 
     # Deprecated: the legacy built-in UI under src/ui is no longer mounted by the backend.
     # The supported operator UI now lives in the separate React frontend under frontend/.
@@ -38,12 +57,13 @@ def create_app() -> FastAPI:
         return JSONResponse(
             content={
                 "service": settings.APP_NAME,
-                "docs": "/docs",
+                "docs": None,
                 "api_prefix": settings.API_PREFIX,
                 "runtime_mode": "ephemeral",
                 "persistence": "disabled",
                 "ui_enabled": False,
                 "legacy_ui_deprecated": True,
+                "authentication": "microsoft-entra-id" if settings.AUTH_ENABLED else "disabled",
             }
         )
 

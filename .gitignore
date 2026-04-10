@@ -1,5 +1,8 @@
 .env
 .venv
+.azure
 **/__pycache__
 public/
 data
+**/.vite
+frontend/dist

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { readEnv } from "@/config/runtime";
 import { fetchRules } from "@/services/rules";
 import { cancelValidationJob, createValidationJob, getValidationJob } from "@/services/validationJobs";
 import type {
@@ -18,7 +19,7 @@ const DEFAULT_STATUS: WorkspaceStatus = {
 };
 
 const POLL_INTERVAL_MS = 900;
-const APP_NAME = import.meta.env.VITE_APP_NAME || "Petra Vision";
+const APP_NAME = readEnv("VITE_APP_NAME") || "Petra Vision";
 
 function revokePreviewUrl(url: string | null): void {
   if (url) {

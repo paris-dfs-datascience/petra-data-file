@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "azureTenantId": {
+      "value": "${AZURE_TENANT_ID}"
+    },
+    "azureApiClientId": {
+      "value": "${AZURE_CLIENT_ID}"
+    },
+    "azureSpaClientId": {
+      "value": "${AZURE_FRONTEND_CLIENT_ID}"
+    },
+    "azureRequiredScope": {
+      "value": "${AZURE_REQUIRED_SCOPE}"
+    },
+    "authEnabled": {
+      "value": "${AUTH_ENABLED}"
+    },
+    "appName": {
+      "value": "${APP_NAME}"
+    },
+    "apiPrefix": {
+      "value": "${API_PREFIX}"
+    },
+    "localWorkdir": {
+      "value": "${LOCAL_WORKDIR}"
+    },
+    "apiAllowedOrigins": {
+      "value": "${API_ALLOWED_ORIGINS}"
+    },
+    "textProvider": {
+      "value": "${TEXT_PROVIDER}"
+    },
+    "visionProvider": {
+      "value": "${VISION_PROVIDER}"
+    },
+    "openAiTextModel": {
+      "value": "${OPENAI_TEXT_MODEL}"
+    },
+    "openAiVisionModel": {
+      "value": "${OPENAI_VISION_MODEL}"
+    },
+    "openAiTextTemperature": {
+      "value": "${OPENAI_TEXT_TEMPERATURE}"
+    },
+    "openAiTextMaxCompletionTokens": {
+      "value": "${OPENAI_TEXT_MAX_COMPLETION_TOKENS}"
+    },
+    "claudeTextModel": {
+      "value": "${CLAUDE_TEXT_MODEL}"
+    },
+    "claudeVisionModel": {
+      "value": "${CLAUDE_VISION_MODEL}"
+    },
+    "claudeTextTemperature": {
+      "value": "${CLAUDE_TEXT_TEMPERATURE}"
+    },
+    "claudeVisionTemperature": {
+      "value": "${CLAUDE_VISION_TEMPERATURE}"
+    },
+    "claudeTextMaxTokens": {
+      "value": "${CLAUDE_TEXT_MAX_TOKENS}"
+    },
+    "claudeVisionMaxTokens": {
+      "value": "${CLAUDE_VISION_MAX_TOKENS}"
+    },
+    "openAiApiKey": {
+      "value": "${OPENAI_API_KEY}"
+    },
+    "anthropicApiKey": {
+      "value": "${ANTHROPIC_API_KEY}"
+    }
+  }
+}

@@ -108,3 +108,21 @@ export interface WorkspaceStatus {
   tone: StatusTone;
   isLoading: boolean;
 }
+
+export interface FeedbackPayload {
+  document_id: string;
+  source_filename: string | null;
+  page: number | null;
+  rule_id: string;
+  rule_name: string;
+  analysis_type: AnalysisType;
+  verdict: string;
+  summary: string;
+  reasoning: string;
+  assessment: "correct" | "incorrect";
+  comment: string;
+}
+
+export interface FeedbackResponse {
+  status: string;
+}
