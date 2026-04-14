@@ -22,6 +22,11 @@ Instructions:
   1. what is wrong or suspicious, and
   2. what the correct or expected form should be.
 
+Reasoning-first workflow:
+- IMPORTANT: Think through your reasoning, findings, and citations BEFORE deciding the verdict.
+- The JSON schema places `reasoning`, `findings`, and `citations` before `verdict` intentionally — complete your analysis first, then set the verdict to match your conclusions.
+- Never contradict your own reasoning. If your analysis finds no violations, the verdict must be `pass`, not `fail`.
+
 Decision guidance:
 - Use `pass` when the extracted content supports the rule.
 - Use `fail` when the extracted content clearly violates the rule.

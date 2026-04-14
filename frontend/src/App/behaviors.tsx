@@ -48,6 +48,7 @@ export function useAppBehavior() {
 
   const [availableRules, setAvailableRules] = useState<RuleDefinition[]>([]);
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  const [bypassedRuleIds, setBypassedRuleIds] = useState<string[]>([]);
   const [status, setStatus] = useState<WorkspaceStatus>(DEFAULT_STATUS);
   const [activeTab, setActiveTab] = useState<WorkspaceTabKey>("source");
   const [isBusy, setIsBusy] = useState(false);
@@ -88,8 +89,13 @@ export function useAppBehavior() {
   }, []);
 
   const selectedRules = useMemo(
-    () => availableRules.filter((rule) => selectedRuleIds.includes(rule.id)),
-    [availableRules, selectedRuleIds],
+    () =>
+      availableRules
+        .filter((rule) => selectedRuleIds.includes(rule.id))
+        .map((rule) =>
+          rule.bypassable && bypassedRuleIds.includes(rule.id) ? { ...rule, bypass: true } : rule,
+        ),
+    [availableRules, selectedRuleIds, bypassedRuleIds],
   );
 
   const syncJobSnapshot = useCallback((job: ValidationJobResponse) => {
@@ -190,11 +196,34 @@ export function useAppBehavior() {
     );
   }, []);
 
+  const handleBypassToggle = useCallback((ruleId: string) => {
+    setBypassedRuleIds((currentIds) =>
+      currentIds.includes(ruleId)
+        ? currentIds.filter((currentId) => currentId !== ruleId)
+        : [...currentIds, ruleId],
+    );
+  }, []);
+
   const handleSelectAllRules = useCallback(() => {
     setSelectedRuleIds((currentIds) =>
       currentIds.length === availableRules.length ? [] : availableRules.map((rule) => rule.id),
     );
   }, [availableRules]);
+
+  const handleGroupToggle = useCallback(
+    (ruleIdsInGroup: string[]) => {
+      setSelectedRuleIds((currentIds) => {
+        const allSelected = ruleIdsInGroup.every((id) => currentIds.includes(id));
+        if (allSelected) {
+          return currentIds.filter((id) => !ruleIdsInGroup.includes(id));
+        }
+        const merged = new Set(currentIds);
+        ruleIdsInGroup.forEach((id) => merged.add(id));
+        return Array.from(merged);
+      });
+    },
+    [],
+  );
 
   const handleStopAnalysis = useCallback(async () => {
     if (!currentJobId) {
@@ -241,12 +270,15 @@ export function useAppBehavior() {
     result,
     rulesError,
     selectedRuleIds,
+    bypassedRuleIds,
     selectedRules,
     sourceFilename,
     sourcePreviewUrl,
     status,
     beginUpload,
     handleRuleToggle,
+    handleBypassToggle,
+    handleGroupToggle,
     handleSelectAllRules,
     handleStopAnalysis,
     loadRules,

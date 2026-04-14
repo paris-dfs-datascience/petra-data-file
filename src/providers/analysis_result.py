@@ -26,14 +26,11 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
     "properties": {
         "rule_id": {"type": "string"},
         "rule_name": {"type": "string"},
-        "verdict": {"type": "string", "enum": ["pass", "fail", "needs_review", "not_applicable"]},
-        "summary": {"type": "string"},
         "reasoning": {"type": "string"},
         "findings": {
             "type": "array",
             "items": {"type": "string"},
         },
-        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
         "citations": {
             "type": "array",
             "items": {
@@ -46,8 +43,11 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
             },
         },
+        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+        "summary": {"type": "string"},
+        "verdict": {"type": "string", "enum": ["pass", "fail", "needs_review", "not_applicable"]},
     },
-    "required": ["rule_id", "rule_name", "verdict", "summary", "reasoning", "findings", "confidence", "citations"],
+    "required": ["rule_id", "rule_name", "reasoning", "findings", "citations", "confidence", "summary", "verdict"],
     "additionalProperties": False,
 }
 

@@ -27,6 +27,8 @@ export function App() {
     beginUpload,
     documentId,
     handleRuleToggle,
+    handleBypassToggle,
+    handleGroupToggle,
     handleSelectAllRules,
     handleStopAnalysis,
     isBusy,
@@ -35,6 +37,7 @@ export function App() {
     result,
     rulesError,
     selectedRuleIds,
+    bypassedRuleIds,
     sourceFilename,
     sourcePreviewUrl,
     status,
@@ -64,7 +67,10 @@ export function App() {
         <RulesSidebar
           rules={availableRules}
           selectedRuleIds={selectedRuleIds}
+          bypassedRuleIds={bypassedRuleIds}
           onRuleToggle={handleRuleToggle}
+          onBypassToggle={handleBypassToggle}
+          onGroupToggle={handleGroupToggle}
           onSelectAll={handleSelectAllRules}
           onRefresh={loadRules}
           errorMessage={rulesError}

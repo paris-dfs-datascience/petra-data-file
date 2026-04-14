@@ -45,6 +45,9 @@ class RuleAssessmentSchema(BaseModel):
     citations: list[AnalysisCitationSchema] = Field(default_factory=list)
     matched_pages: list[int] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    group: Optional[str] = None
+    bypassable: bool = False
+    bypass: bool = False
 
 
 class PageRuleAssessmentSchema(BaseModel):
@@ -59,6 +62,9 @@ class PageRuleAssessmentSchema(BaseModel):
     findings: list[str] = Field(default_factory=list)
     citations: list[AnalysisCitationSchema] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    group: Optional[str] = None
+    bypassable: bool = False
+    bypass: bool = False
 
 
 class DocumentAnalysisSchema(BaseModel):

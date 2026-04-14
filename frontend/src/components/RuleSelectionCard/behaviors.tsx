@@ -5,8 +5,10 @@ import type { RuleDefinition } from "@/types/api";
 
 export interface RuleSelectionCardProps {
   checked: boolean;
+  bypassed: boolean;
   rule: RuleDefinition;
   onToggle: (ruleId: string) => void;
+  onBypassToggle: (ruleId: string) => void;
 }
 
 export function getRuleTypeClasses(type: RuleDefinition["analysis_type"]): string {

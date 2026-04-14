@@ -13,6 +13,19 @@ from src.services.validation_job_service import validation_job_service
 
 router = APIRouter(prefix="/validations", tags=["validations"])
 
+PDF_MAGIC = b"%PDF-"
+
+
+async def _read_and_validate_upload(pdf: UploadFile, max_size_mb: int) -> bytes:
+    content = await pdf.read()
+    if len(content) > max_size_mb * 1024 * 1024:
+        raise HTTPException(status_code=413, detail=f"File exceeds {max_size_mb} MB limit.")
+    if pdf.content_type and pdf.content_type != "application/pdf":
+        raise HTTPException(status_code=415, detail="Only PDF files are accepted.")
+    if not content.startswith(PDF_MAGIC):
+        raise HTTPException(status_code=422, detail="File does not appear to be a valid PDF.")
+    return content
+
 
 def _stage_pdf_for_processing(filename: str, content: bytes, workdir: str) -> tuple[str, str]:
     safe_filename = Path(filename or "document.pdf").name or "document.pdf"
@@ -29,9 +42,10 @@ async def validate_document(
     rules_json: str | None = Form(None, description="Selected rules JSON"),
 ) -> DocumentValidationResponse:
     settings = get_settings()
+    content = await _read_and_validate_upload(pdf, settings.MAX_UPLOAD_SIZE_MB)
     filename, pdf_path = _stage_pdf_for_processing(
         filename=pdf.filename or "document.pdf",
-        content=await pdf.read(),
+        content=content,
         workdir=settings.LOCAL_WORKDIR,
     )
     service = ValidationService()
@@ -55,9 +69,10 @@ async def create_validation_job(
     rules_json: str | None = Form(None, description="Selected rules JSON"),
 ) -> ValidationJobResponse:
     settings = get_settings()
+    content = await _read_and_validate_upload(pdf, settings.MAX_UPLOAD_SIZE_MB)
     filename, pdf_path = _stage_pdf_for_processing(
         filename=pdf.filename or "document.pdf",
-        content=await pdf.read(),
+        content=content,
         workdir=settings.LOCAL_WORKDIR,
     )
     job = validation_job_service.start_job(

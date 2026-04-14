@@ -55,6 +55,20 @@ def _fallback_rule_assessment(rule: dict, pages: list[dict]) -> dict:
     }
 
 
+def _enrich_with_rule_metadata(items: list[dict], rule_lookup: dict[str, dict]) -> list[dict]:
+    """Stamp group/bypassable/bypass onto each assessment dict from the originating rule."""
+    enriched: list[dict] = []
+    for item in items:
+        rule_id = item.get("rule_id") or ""
+        meta = rule_lookup.get(rule_id, {})
+        merged = dict(item)
+        merged.setdefault("group", meta.get("group"))
+        merged.setdefault("bypassable", bool(meta.get("bypassable", False)))
+        merged.setdefault("bypass", bool(meta.get("bypass", False)))
+        enriched.append(merged)
+    return enriched
+
+
 def build_document_analysis(
     pages: list[dict],
     selected_rules: list[dict] | None = None,
@@ -70,6 +84,13 @@ def build_document_analysis(
     text_rule_count = sum(1 for rule in selected_rules if rule.get("analysis_type", "text") == "text")
     vision_rule_count = sum(1 for rule in selected_rules if rule.get("analysis_type", "text") == "vision")
     rule_assessments = rule_assessments or [_fallback_rule_assessment(rule, pages) for rule in selected_rules]
+
+    rule_lookup = {rule.get("id", ""): rule for rule in selected_rules if rule.get("id")}
+    rule_assessments = _enrich_with_rule_metadata(rule_assessments, rule_lookup)
+    text_page_results = _enrich_with_rule_metadata(text_page_results or [], rule_lookup)
+    visual_page_results = _enrich_with_rule_metadata(visual_page_results or [], rule_lookup)
+    bypassed_rule_count = sum(1 for r in selected_rules if r.get("bypass"))
+
     completed_text_rule_count = sum(
         1
         for item in rule_assessments
@@ -86,6 +107,7 @@ def build_document_analysis(
         {"label": "Text Rules", "value": str(text_rule_count), "detail": "Rules intended for text/content analysis."},
         {"label": "Vision Rules", "value": str(vision_rule_count), "detail": "Rules intended for image-based analysis."},
         {"label": "Text Rules Completed", "value": str(completed_text_rule_count), "detail": "Text rules evaluated by the LLM in this run."},
+        {"label": "Rules Bypassed", "value": str(bypassed_rule_count), "detail": "Rules flagged bypassable and marked bypass for this run."},
     ]
 
     page_observations = []

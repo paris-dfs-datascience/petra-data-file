@@ -23,6 +23,20 @@ _VERDICT_LABELS = {
     "skipped": "SKIPPED",
 }
 
+_UNCATEGORIZED_KEY = "__uncategorized__"
+
+
+def _humanize_group(key: str | None) -> str:
+    if not key:
+        return "Uncategorized"
+    parts = [p for p in key.replace("-", " ").replace("_", " ").split() if p]
+    return " ".join(part[:1].upper() + part[1:] for part in parts) or "Uncategorized"
+
+
+def _group_key(item: Any) -> str:
+    group = getattr(item, "group", None)
+    return group.strip() if isinstance(group, str) and group.strip() else _UNCATEGORIZED_KEY
+
 _PDF_CHAR_REPLACEMENTS = str.maketrans(
     {
         "\u2012": "-",
@@ -92,12 +106,22 @@ def _add_cover_sheet(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
     pdf.set_font("Helvetica", "", 11)
     pdf.set_text_color(71, 85, 105)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    bypassed_rules = [a for a in req.analysis.rule_assessments if getattr(a, "bypass", False)]
+    bypassed_line = f"Rules bypassed: {len(bypassed_rules)}"
+    if bypassed_rules:
+        ids_preview = ", ".join(a.rule_id for a in bypassed_rules[:4])
+        if len(bypassed_rules) > 4:
+            ids_preview += f", +{len(bypassed_rules) - 4} more"
+        bypassed_line += f"  ({ids_preview})"
+
     meta_lines = [
         f"Document: {_pdf_text(req.source_filename, 'Unknown')}",
         f"Document ID: {_pdf_text(req.document_id)}",
         f"Pages: {req.page_count}",
         f"Generated: {now}",
         f"Rules evaluated: {req.analysis.selected_rule_count}",
+        bypassed_line,
     ]
     for line in meta_lines:
         pdf.cell(0, 7, _pdf_text(line), align="C")
@@ -140,18 +164,94 @@ def _add_summary_section(pdf: _ReportPdf, req: ExportPdfRequest) -> None:
             pdf.ln(6)
         pdf.ln(6)
 
-    # Rule assessment summary table
+    # Rule assessment summary — grouped
     assessments = analysis.rule_assessments
     if assessments:
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(15, 23, 42)
-        pdf.cell(0, 7, "Rule Assessment Summary")
+        pdf.cell(0, 7, "Group Summary")
         pdf.ln(8)
-        _add_assessment_table(pdf, assessments)
+        _add_group_summary_table(pdf, assessments)
+        pdf.ln(4)
+
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(0, 7, "Rule Assessments by Group")
+        pdf.ln(8)
+        _add_grouped_assessment_tables(pdf, assessments)
+
+
+def _add_group_summary_table(pdf: _ReportPdf, assessments: list[RuleAssessmentSchema]) -> None:
+    """One row per group: Rules / Pass / Fail / N.R. / Bypass."""
+    buckets: dict[str, list[RuleAssessmentSchema]] = {}
+    for a in assessments:
+        buckets.setdefault(_group_key(a), []).append(a)
+
+    col_widths = [70, 18, 18, 18, 22, 22]
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_fill_color(241, 245, 249)
+    pdf.set_text_color(51, 65, 85)
+    headers = ["Group", "Rules", "Pass", "Fail", "Review", "Bypass"]
+    for w, label in zip(col_widths, headers):
+        pdf.cell(w, 7, label, border=1, fill=True)
+    pdf.ln(7)
+
+    pdf.set_font("Helvetica", "", 9)
+    # Sort: alphabetical but Uncategorized last.
+    keys = sorted(buckets.keys(), key=lambda k: (k == _UNCATEGORIZED_KEY, _humanize_group(k).lower()))
+    for key in keys:
+        rules_in_group = buckets[key]
+        total = len(rules_in_group)
+        passes = sum(1 for a in rules_in_group if a.verdict == "pass")
+        fails = sum(1 for a in rules_in_group if a.verdict == "fail")
+        reviews = sum(1 for a in rules_in_group if a.verdict == "needs_review")
+        bypassed = sum(1 for a in rules_in_group if getattr(a, "bypass", False))
+
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(col_widths[0], 6, _pdf_text(_humanize_group(key))[:40], border=1)
+        pdf.cell(col_widths[1], 6, str(total), border=1, align="C")
+        pdf.set_text_color(4, 120, 87) if passes else pdf.set_text_color(15, 23, 42)
+        pdf.cell(col_widths[2], 6, str(passes), border=1, align="C")
+        pdf.set_text_color(190, 18, 60) if fails else pdf.set_text_color(15, 23, 42)
+        pdf.cell(col_widths[3], 6, str(fails), border=1, align="C")
+        pdf.set_text_color(146, 64, 14) if reviews else pdf.set_text_color(15, 23, 42)
+        pdf.cell(col_widths[4], 6, str(reviews), border=1, align="C")
+        pdf.set_text_color(146, 64, 14) if bypassed else pdf.set_text_color(15, 23, 42)
+        pdf.cell(col_widths[5], 6, str(bypassed), border=1, align="C")
+        pdf.ln(6)
+
+
+def _add_grouped_assessment_tables(pdf: _ReportPdf, assessments: list[RuleAssessmentSchema]) -> None:
+    """Per-group sub-heading followed by its assessments table."""
+    buckets: dict[str, list[RuleAssessmentSchema]] = {}
+    for a in assessments:
+        buckets.setdefault(_group_key(a), []).append(a)
+
+    keys = sorted(buckets.keys(), key=lambda k: (k == _UNCATEGORIZED_KEY, _humanize_group(k).lower()))
+    for key in keys:
+        group_rules = buckets[key]
+        if pdf.get_y() > pdf.h - 40:
+            pdf.add_page()
+
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_text_color(15, 23, 42)
+        fails = sum(1 for a in group_rules if a.verdict == "fail")
+        bypassed = sum(1 for a in group_rules if getattr(a, "bypass", False))
+        heading = f"{_humanize_group(key)}  -  {len(group_rules)} rule(s)"
+        if fails:
+            heading += f" - {fails} fail"
+        if bypassed:
+            heading += f" - {bypassed} bypassed"
+        pdf.cell(0, 7, _pdf_text(heading))
+        pdf.ln(8)
+
+        _add_assessment_table(pdf, group_rules)
+        pdf.ln(4)
 
 
 def _add_assessment_table(pdf: _ReportPdf, assessments: list[RuleAssessmentSchema]) -> None:
-    col_widths = [60, 25, 22, pdf.w - 20 - 60 - 25 - 22]  # name, type, verdict, summary
+    # name, type, verdict, bypass, summary
+    col_widths = [60, 20, 22, 18, pdf.w - 20 - 60 - 20 - 22 - 18]
 
     # Header
     pdf.set_font("Helvetica", "B", 9)
@@ -160,41 +260,47 @@ def _add_assessment_table(pdf: _ReportPdf, assessments: list[RuleAssessmentSchem
     pdf.cell(col_widths[0], 7, "Rule", border=1, fill=True)
     pdf.cell(col_widths[1], 7, "Type", border=1, fill=True)
     pdf.cell(col_widths[2], 7, "Verdict", border=1, fill=True)
-    pdf.cell(col_widths[3], 7, "Summary", border=1, fill=True)
+    pdf.cell(col_widths[3], 7, "Bypass", border=1, fill=True)
+    pdf.cell(col_widths[4], 7, "Summary", border=1, fill=True)
     pdf.ln(7)
 
     # Rows
     pdf.set_font("Helvetica", "", 9)
     for a in assessments:
         pdf.set_text_color(15, 23, 42)
-        x_start = pdf.get_x()
         y_start = pdf.get_y()
 
         # Calculate row height based on summary text
         summary_text = _pdf_text(a.summary or "-")
-        # Estimate lines needed
-        summary_width = col_widths[3] - 2
+        summary_width = col_widths[4] - 2
         n_lines = max(1, len(summary_text) // int(summary_width * 0.45) + 1)
         row_h = max(7, n_lines * 5)
 
         pdf.cell(col_widths[0], row_h, _pdf_text(a.rule_name or a.rule_id)[:35], border=1)
         pdf.cell(col_widths[1], row_h, _pdf_text(a.analysis_type), border=1)
 
-        # Color the verdict
+        # Verdict colored
         v = a.verdict
         if v == "pass":
-            pdf.set_text_color(4, 120, 87)  # emerald-700
+            pdf.set_text_color(4, 120, 87)
         elif v == "fail":
-            pdf.set_text_color(190, 18, 60)  # rose-700
+            pdf.set_text_color(190, 18, 60)
         else:
-            pdf.set_text_color(146, 64, 14)  # amber-700
+            pdf.set_text_color(146, 64, 14)
         pdf.cell(col_widths[2], row_h, _pdf_text(_verdict_label(v)), border=1)
 
+        # Bypass cell — amber "YES" if bypassed, "-" otherwise
+        bypassed_flag = bool(getattr(a, "bypass", False))
+        if bypassed_flag:
+            pdf.set_text_color(146, 64, 14)
+            bypass_text = "YES"
+        else:
+            pdf.set_text_color(148, 163, 184)
+            bypass_text = "-"
+        pdf.cell(col_widths[3], row_h, bypass_text, border=1, align="C")
+
         pdf.set_text_color(15, 23, 42)
-        # For summary, use multi_cell inside a clipped area
-        x_summary = pdf.get_x()
-        pdf.multi_cell(col_widths[3], 5, summary_text[:200], border=1)
-        # Ensure we advance past the row
+        pdf.multi_cell(col_widths[4], 5, summary_text[:200], border=1)
         expected_y = y_start + row_h
         if pdf.get_y() < expected_y:
             pdf.set_y(expected_y)
@@ -261,7 +367,22 @@ def _add_single_result(pdf: _ReportPdf, item: PageRuleAssessmentSchema) -> None:
     pdf.set_text_color(100, 116, 139)
     pdf.cell(20, 5, _pdf_text(item.analysis_type.upper()))
     pdf.cell(30, 5, _pdf_text(item.execution_status.upper()))
+    if getattr(item, "bypass", False):
+        pdf.set_text_color(146, 64, 14)  # amber-700
+        pdf.cell(30, 5, "BYPASSED")
     pdf.ln(7)
+
+    if getattr(item, "bypass", False):
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(146, 64, 14)
+        pdf.multi_cell(
+            0,
+            4,
+            _pdf_text(
+                "This rule was marked bypassable for this run - findings are surfaced but not gating."
+            ),
+        )
+        pdf.ln(1)
 
     # Summary
     if item.summary:

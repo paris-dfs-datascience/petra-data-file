@@ -18,6 +18,11 @@ Instructions:
 - Keep the output concise, but include all distinct rule-relevant issues visible on the page, up to 6 findings and 6 citations.
 - Return JSON only and match the requested schema exactly.
 
+Reasoning-first workflow:
+- IMPORTANT: Think through your reasoning, findings, and citations BEFORE deciding the verdict.
+- The JSON schema places `reasoning`, `findings`, and `citations` before `verdict` intentionally — complete your analysis first, then set the verdict to match your conclusions.
+- Never contradict your own reasoning. If your analysis finds no violations, the verdict must be `pass`, not `fail`.
+
 Decision guidance:
 - Use `pass` when the visible image supports the rule.
 - Use `fail` when the visible image clearly violates the rule.

@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     APP_ADMIN_EMAIL: str = "admin@example.com"
     APP_ADMIN_PASSWORD: str = "admin"
 
+    MAX_UPLOAD_SIZE_MB: int = 50
     LOCAL_WORKDIR: str = "data/tmp"
     API_ALLOWED_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 

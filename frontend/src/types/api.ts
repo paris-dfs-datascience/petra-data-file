@@ -12,6 +12,17 @@ export interface RuleDefinition {
   description?: string | null;
   acceptance_criteria?: string | null;
   severity?: string | null;
+  group?: string | null;
+  section?: string | null;
+  bypassable?: boolean;
+  bypass?: boolean;
+  tolerance?: number | null;
+  check_method?: string | null;
+  steps?: string | null;
+  pass_criteria?: string | null;
+  fail_criteria?: string | null;
+  action_if_fail?: string | null;
+  rationale?: string | null;
 }
 
 export interface RulesResponse {
@@ -53,6 +64,9 @@ export interface RuleAssessment {
   citations: AnalysisCitation[];
   matched_pages: number[];
   notes: string[];
+  group?: string | null;
+  bypassable?: boolean;
+  bypass?: boolean;
 }
 
 export interface PageRuleAssessment {
@@ -67,6 +81,9 @@ export interface PageRuleAssessment {
   findings: string[];
   citations: AnalysisCitation[];
   notes: string[];
+  group?: string | null;
+  bypassable?: boolean;
+  bypass?: boolean;
 }
 
 export interface PageObservation {
