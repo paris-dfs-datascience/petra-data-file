@@ -305,6 +305,34 @@ resource acrPullIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01
   }
 }
 
+// ---------------------------------------------------------------------------
+// Persistent storage for feedback and app data
+// ---------------------------------------------------------------------------
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: toLower(take('petrast${uniqueString(resourceGroup().id, environmentName)}', 24))
+  location: location
+  tags: union(tags, {
+    'azd-env-name': environmentName
+  })
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+}
+
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'petra-data'
+  properties: {
+    shareQuota: 1
+  }
+}
+
 resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: containerAppsEnvironmentName
   location: location
@@ -318,6 +346,19 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
         customerId: logAnalyticsWorkspace.properties.customerId
         sharedKey: logAnalyticsWorkspace.listKeys().primarySharedKey
       }
+    }
+  }
+}
+
+resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+  parent: containerAppsEnvironment
+  name: 'petra-data-storage'
+  properties: {
+    azureFile: {
+      accountName: storageAccount.name
+      accountKey: storageAccount.listKeys().keys[0].value
+      shareName: fileShare.name
+      accessMode: 'ReadWrite'
     }
   }
 }
@@ -337,6 +378,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   dependsOn: [
     acrPullIdentityRole
+    envStorage
   ]
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
@@ -357,6 +399,13 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: backendSecrets
     }
     template: {
+      volumes: [
+        {
+          name: 'petra-data-vol'
+          storageName: envStorage.name
+          storageType: 'AzureFile'
+        }
+      ]
       containers: [
         {
           name: 'api'
@@ -366,6 +415,12 @@ resource backendContainerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.5')
             memory: '1Gi'
           }
+          volumeMounts: [
+            {
+              volumeName: 'petra-data-vol'
+              mountPath: '/app/data'
+            }
+          ]
         }
       ]
       scale: {
