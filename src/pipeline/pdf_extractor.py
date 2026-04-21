@@ -5,6 +5,7 @@ from statistics import mean, median
 import pdfplumber
 
 from src.core.config import AppYaml
+from src.pipeline.page_classifier import classify_page
 
 
 def _normalize_cell(value: object) -> str:
@@ -313,13 +314,13 @@ class PdfExtractor:
                         }
                     )
 
-                pages.append(
-                    {
-                        "page": index,
-                        "text": text,
-                        "tables": tables,
-                        "char_count": len(text),
-                        "layout_summary": _summarize_top_lines(page, table_regions),
-                    }
-                )
+                page_dict = {
+                    "page": index,
+                    "text": text,
+                    "tables": tables,
+                    "char_count": len(text),
+                    "layout_summary": _summarize_top_lines(page, table_regions),
+                }
+                page_dict["page_type"] = classify_page(page_dict)
+                pages.append(page_dict)
         return pages

@@ -5,6 +5,7 @@ from collections.abc import Callable
 
 from src.core.config import Settings
 from src.core.prompting import load_prompt
+from src.pipeline.page_classifier import rule_applies_to_page
 from src.providers.text.factory import build_text_provider
 
 
@@ -114,6 +115,22 @@ def _build_skipped_result(rule: dict, message: str, execution_status: str = "ski
     }
 
 
+def _build_not_applicable_rule_result(rule: dict, reason: str) -> dict:
+    return {
+        "rule_id": rule.get("id", ""),
+        "rule_name": rule.get("name", rule.get("id", "")),
+        "analysis_type": "text",
+        "execution_status": "not_applicable",
+        "verdict": "not_applicable",
+        "summary": reason,
+        "reasoning": reason,
+        "findings": [],
+        "citations": [],
+        "matched_pages": [],
+        "notes": [reason],
+    }
+
+
 class TextRuleAnalyzer:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -202,10 +219,21 @@ class TextRuleAnalyzer:
         for rule in text_rules:
             rule_id = rule.get("id", "")
             per_rule_page_results: list[dict] = []
+            evaluated_any_page = False
             for page in pages:
                 if is_cancelled and is_cancelled():
-                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+                    results[rule_id] = (
+                        self._aggregate_rule_results(rule, per_rule_page_results)
+                        if evaluated_any_page
+                        else _build_not_applicable_rule_result(
+                            rule,
+                            "No pages matched this rule's section before cancellation.",
+                        )
+                    )
                     return {"rule_results": results, "page_results": page_results}
+                if not rule_applies_to_page(rule, page.get("page_type") or []):
+                    continue
+                evaluated_any_page = True
                 page_number = int(page.get("page", 0))
                 try:
                     document_content = _serialize_page_content(page, rule)
@@ -243,5 +271,11 @@ class TextRuleAnalyzer:
                 results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
                 if on_page_result:
                     on_page_result(page_result, dict(results), list(page_results))
-            results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+            if evaluated_any_page:
+                results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+            else:
+                results[rule_id] = _build_not_applicable_rule_result(
+                    rule,
+                    "No pages matched this rule's section.",
+                )
         return {"rule_results": results, "page_results": page_results}

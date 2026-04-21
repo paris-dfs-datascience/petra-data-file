@@ -9,6 +9,7 @@ from pathlib import Path
 
 from src.core.config import AppYaml, Settings
 from src.core.prompting import load_prompt
+from src.pipeline.page_classifier import rule_applies_to_page
 from src.pipeline.pdf_renderer import PdfRenderer
 from src.providers.vision.factory import build_vision_provider
 
@@ -29,6 +30,22 @@ def _build_skipped_result(rule: dict, message: str, execution_status: str = "ski
         "citations": [],
         "matched_pages": [],
         "notes": [message],
+    }
+
+
+def _build_not_applicable_rule_result(rule: dict, reason: str) -> dict:
+    return {
+        "rule_id": rule.get("id", ""),
+        "rule_name": rule.get("name", rule.get("id", "")),
+        "analysis_type": "vision",
+        "execution_status": "not_applicable",
+        "verdict": "not_applicable",
+        "summary": reason,
+        "reasoning": reason,
+        "findings": [],
+        "citations": [],
+        "matched_pages": [],
+        "notes": [reason],
     }
 
 
@@ -127,9 +144,11 @@ class VisionRuleAnalyzer:
         self,
         pdf_path: str,
         rules: list[dict],
+        page_types_by_number: dict[int, list[str]] | None = None,
         on_page_result: Callable[[dict, dict[str, dict], list[dict]], None] | None = None,
         is_cancelled: Callable[[], bool] | None = None,
     ) -> dict[str, list[dict] | dict[str, dict]]:
+        page_types_by_number = page_types_by_number or {}
         vision_rules = [rule for rule in rules if rule.get("analysis_type", "text") == "vision"]
         if not vision_rules:
             return {"rule_results": {}, "page_results": []}
@@ -169,12 +188,23 @@ class VisionRuleAnalyzer:
             for rule in vision_rules:
                 rule_id = rule.get("id", "")
                 per_rule_page_results: list[dict] = []
+                evaluated_any_page = False
                 for page_image in page_images:
                     if is_cancelled and is_cancelled():
-                        results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+                        results[rule_id] = (
+                            self._aggregate_rule_results(rule, per_rule_page_results)
+                            if evaluated_any_page
+                            else _build_not_applicable_rule_result(
+                                rule,
+                                "No pages matched this rule's section before cancellation.",
+                            )
+                        )
                         return {"rule_results": results, "page_results": page_results}
 
                     page_number = int(page_image.get("page", 0) or 0)
+                    if not rule_applies_to_page(rule, page_types_by_number.get(page_number) or []):
+                        continue
+                    evaluated_any_page = True
                     try:
                         raw_result = provider.evaluate_rule(page_image=page_image, rule=rule, system_prompt=self.system_prompt)
                         citations = [
@@ -221,7 +251,13 @@ class VisionRuleAnalyzer:
                     if on_page_result:
                         on_page_result(page_result, dict(results), list(page_results))
 
-                results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+                if evaluated_any_page:
+                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
+                else:
+                    results[rule_id] = _build_not_applicable_rule_result(
+                        rule,
+                        "No pages matched this rule's section.",
+                    )
 
             return {"rule_results": results, "page_results": page_results}
         finally:

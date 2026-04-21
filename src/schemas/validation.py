@@ -15,6 +15,10 @@ class PageExtractionSchema(BaseModel):
     text: str = Field(default="", description="Raw text extracted from the page.")
     tables: list[ExtractedTableSchema] = Field(default_factory=list, description="Structured tables extracted from the page.")
     char_count: int = Field(default=0, description="Character count of extracted page text.")
+    page_type: list[str] = Field(
+        default_factory=list,
+        description="Statement types detected on this page (e.g. balance_sheet). Empty means unclassified.",
+    )
 
 
 class AnalysisMetricSchema(BaseModel):

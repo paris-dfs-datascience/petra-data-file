@@ -179,9 +179,11 @@ class ValidationJobService:
                         visual_page_results=current_page_results,
                     )
 
+            page_types_by_number = {int(p.get("page", 0)): (p.get("page_type") or []) for p in pages}
             vision_analysis_results = service.pipeline.vision_rule_analyzer.analyze(
                 pdf_path=pdf_path,
                 rules=selected_rules,
+                page_types_by_number=page_types_by_number,
                 on_page_result=on_vision_page_result,
                 is_cancelled=lambda: bool(job.cancel_requested),
             )
