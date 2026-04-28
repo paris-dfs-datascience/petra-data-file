@@ -8,21 +8,34 @@ suggest areas of improvement. It auto-detects two input shapes:
 | `feedback.json` | `/app/data/feedback.json` (written by `src/api/routers/feedback.py`) | User-marked `assessment == "incorrect"` |
 | Validation report | `python -m src.main validate --out report.json` | Rules with verdict `fail` / `needs_review` |
 
+## Conventions
+
+By default the script reads from and writes to a folder on your Desktop:
+
+```
+~/Desktop/feedback_audit_tool/
+├── feedback.json       # download from the petra-data file share
+└── improvements.md     # produced by the analyzer
+```
+
+Drop `feedback.json` (downloaded from Azure Storage Explorer / Portal / CLI)
+into that folder and the analyzer will pick it up.
+
 ## Usage
 
-```bash
-# Pull feedback.json off the running container app
-az containerapp exec --name ai-audit-tool --resource-group PET-RG-03 \
-  --command "sh -c 'cat /app/data/feedback.json'" > feedback.json
+```powershell
+# Default: reads ~/Desktop/feedback_audit_tool/feedback.json
+# and writes ~/Desktop/feedback_audit_tool/improvements.md
+python flag_analysis\analyze_flags.py
 
-# Analyze it
-python flag_analysis/analyze_flags.py feedback.json
+# Override the input path
+python flag_analysis\analyze_flags.py C:\path\to\other.json
 
-# Save Claude's feedback to a file
-python flag_analysis/analyze_flags.py feedback.json --out improvements.md
+# Override the output path
+python flag_analysis\analyze_flags.py --out C:\path\to\report.md
 
 # Stats only (no LLM call)
-python flag_analysis/analyze_flags.py feedback.json --skip-llm
+python flag_analysis\analyze_flags.py --skip-llm
 ```
 
 ## Environment

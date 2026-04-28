@@ -1,5 +1,9 @@
 """Analyze flag/feedback data from Petra and ask Claude for areas of improvement.
 
+By default, reads `~/Desktop/feedback_audit_tool/feedback.json` and writes
+Claude's Markdown feedback to `~/Desktop/feedback_audit_tool/improvements.md`.
+Both can be overridden on the CLI.
+
 Auto-detects the input shape:
 
 * **feedback.json** — list of FeedbackRecord (the file written by the API at
@@ -11,9 +15,10 @@ Auto-detects the input shape:
   verdict `fail` or `needs_review`.
 
 Usage:
+    python flag_analysis/analyze_flags.py
     python flag_analysis/analyze_flags.py <path-to.json>
-    python flag_analysis/analyze_flags.py <path-to.json> --out feedback.md
-    python flag_analysis/analyze_flags.py <path-to.json> --skip-llm
+    python flag_analysis/analyze_flags.py --out custom.md
+    python flag_analysis/analyze_flags.py --skip-llm
 
 Environment:
     ANTHROPIC_API_KEY     Required (unless --skip-llm).
@@ -37,6 +42,9 @@ from rich.table import Table
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
 FAIL_VERDICTS = {"fail", "needs_review"}
+DEFAULT_DIR = Path.home() / "Desktop" / "feedback_audit_tool"
+DEFAULT_INPUT = DEFAULT_DIR / "feedback.json"
+DEFAULT_OUTPUT = DEFAULT_DIR / "improvements.md"
 
 cli = typer.Typer(add_completion=False, help=__doc__)
 console = Console()
@@ -276,8 +284,16 @@ def _ask_claude(prompt: str, model: str) -> str:
 
 @cli.command()
 def main(
-    path: Path = typer.Argument(..., help="Path to feedback.json or a validation report JSON."),
-    out: Path | None = typer.Option(None, "--out", "-o", help="Write Claude's feedback to this Markdown file."),
+    path: Path = typer.Argument(
+        DEFAULT_INPUT,
+        help=f"Path to feedback.json or a validation report JSON. Defaults to {DEFAULT_INPUT}.",
+    ),
+    out: Path = typer.Option(
+        DEFAULT_OUTPUT,
+        "--out",
+        "-o",
+        help=f"Write Claude's feedback to this Markdown file. Defaults to {DEFAULT_OUTPUT}.",
+    ),
     model: str = typer.Option(
         os.environ.get("CLAUDE_TEXT_MODEL", DEFAULT_MODEL),
         "--model",
@@ -287,6 +303,7 @@ def main(
     skip_llm: bool = typer.Option(False, "--skip-llm", help="Print stats only; do not call Claude."),
 ) -> None:
     load_dotenv()
+    console.print(f"[dim]Reading from:[/dim] {path}")
     payload = _load_json(path)
 
     if _is_feedback_records(payload):
@@ -319,9 +336,9 @@ def main(
     console.rule("[bold]Claude Feedback[/bold]")
     console.print(feedback)
 
-    if out:
-        out.write_text(feedback, encoding="utf-8")
-        console.print(f"\n[green]Saved feedback to {out}[/green]")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(feedback, encoding="utf-8")
+    console.print(f"\n[green]Saved feedback to {out}[/green]")
 
 
 if __name__ == "__main__":
