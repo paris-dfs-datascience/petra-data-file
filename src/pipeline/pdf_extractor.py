@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from statistics import mean, median
 
 import pdfplumber
@@ -8,10 +9,25 @@ from src.core.config import AppYaml
 from src.pipeline.page_classifier import classify_page
 
 
+_INTRA_NUMBER_SPACE_PATTERNS = (
+    re.compile(r"(?<=\d) (?=\d{0,2},\d{3})"),
+    re.compile(r"(?<=\d) (?=\d{1,3}\.\d)"),
+    re.compile(r"(?<=\d)\s+(?=%)"),
+)
+
+
+def _join_split_numbers(text: str) -> str:
+    if not text:
+        return text
+    for pattern in _INTRA_NUMBER_SPACE_PATTERNS:
+        text = pattern.sub("", text)
+    return text
+
+
 def _normalize_cell(value: object) -> str:
     if value is None:
         return ""
-    return str(value).strip()
+    return _join_split_numbers(str(value).strip())
 
 
 def _as_float(value: object) -> float:
@@ -283,7 +299,8 @@ class PdfExtractor:
         use_layout = pdf_config.text_layout if pdf_config else True
         x_density = pdf_config.text_x_density if pdf_config else 7.25
         y_density = pdf_config.text_y_density if pdf_config else 13.0
-        return page.extract_text(layout=use_layout, x_density=x_density, y_density=y_density) or ""
+        raw = page.extract_text(layout=use_layout, x_density=x_density, y_density=y_density) or ""
+        return _join_split_numbers(raw)
 
     def extract(self, pdf_path: str) -> list[dict]:
         pages: list[dict] = []
