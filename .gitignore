@@ -6,3 +6,4 @@ public/
 data
 **/.vite
 frontend/dist
+.DS_Store
