@@ -1,0 +1,71 @@
+# Integration test cases for the validation pipeline.
+#
+# Each case runs a PDF through the real validation pipeline (live LLM calls)
+# and asserts that every listed rule produces the expected verdict.
+#
+# Requires a valid .env with API keys (OPENAI_API_KEY or ANTHROPIC_API_KEY).
+#
+# ─────────────────────────────────────────────────────────────
+# HOW TO ADD A NEW CASE
+# ─────────────────────────────────────────────────────────────
+# 1. Place the PDF in tests/fixtures/documents/
+# 2. Add a case block below with `id`, `document`, and `rules`
+#    (leave `expected` out for now)
+# 3. Run the discovery script to see what the pipeline actually returns:
+#      python scripts/update_integration_expectations.py
+# 4. The script prints a ready-to-paste `expected` block — review the
+#    verdicts, paste them into the case, and commit.
+#
+# ─────────────────────────────────────────────────────────────
+# RUNNING THE TESTS
+# ─────────────────────────────────────────────────────────────
+#   pytest tests/integration -m integration           # run all cases
+#   pytest tests/integration -m integration -k foo    # filter by name
+#   pytest tests/integration -m integration -v        # verbose output
+#
+# ─────────────────────────────────────────────────────────────
+# FIELD REFERENCE
+# ─────────────────────────────────────────────────────────────
+# id            Unique snake_case identifier for this case (used as the
+#               pytest node prefix, e.g. my_fund/BS-FMT)
+# description   Optional free-text note — why this case exists, what it covers
+# document      Path to the PDF relative to the repo root
+# rules         Rule IDs from rules/rules.json to run for this document
+# expected      List of per-rule assertions
+#   rule_id       Must be present in the `rules` list above
+#   verdict       One of: pass | fail | needs_review | not_applicable
+#   matched_pages (optional) 1-based page numbers where the rule fired;
+#                 omit if you do not need to assert specific pages
+#
+# ─────────────────────────────────────────────────────────────
+# EXAMPLE (copy-paste below and fill in to create a new test case)
+# ─────────────────────────────────────────────────────────────
+# cases:
+#   - id: my_test_case
+#     description: "A description of what this case is testing and why it exists"
+#     document: tests/fixtures/documents/document_name.pdf
+#     rules:
+#       - BS-FMT
+#       - NUM-REFOOT
+#       - GRAM-SPELL
+#     expected:
+#       - rule_id: BS-FMT
+#         verdict: pass
+#       - rule_id: NUM-REFOOT
+#         verdict: pass
+#       - rule_id: GRAM-SPELL
+#         verdict: fail
+#         matched_pages: [5, 9]
+
+cases:
+  - id: number_split_formatting
+    description: "Tests that numbers are not split with a whitespace by the pdfplumber parser"
+    document: tests/fixtures/documents/pdfplumber_number_split_scenarios.pdf
+    rules:
+      - NUM-REFOOT
+      - NUM-CROSSFOOT
+    expected:
+      - rule_id: NUM-REFOOT
+        verdict: pass
+      - rule_id: NUM-CROSSFOOT
+        verdict: pass

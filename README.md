@@ -12,21 +12,29 @@ The operator workflow is protected by Microsoft Entra ID. The React frontend req
 
 ---
 
+## Setup
+
+Create and activate a virtual environment, then install dependencies:
+
+```bash
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
+
+# Mac/Linux
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+This is required before running the API, the tests, or any of the scripts.
+
+---
+
 ## Quick Start
 
-1. **Install**
-   # Create virtual environment
-   # Windows
-   python -m venv .venv
-   .venv\Scripts\activate
-
-   # Mac/Linux
-   python3 -m venv .venv
-   source .venv/bin/activate
-   
-   # Install dependencies
-   python -m pip install -r requirements.txt
-2. **Configure**
+1. **Configure**
    - Copy `env.example` to `.env`.
    - Copy `frontend/.env.example` to `frontend/.env`.
    - Choose providers with `TEXT_PROVIDER` and `VISION_PROVIDER` using `openai` or `claude`.
@@ -48,31 +56,23 @@ The supported UI now lives in the separate React app under `frontend/`.
 - the backend root `/` now returns a JSON service descriptor only
 - use the standalone frontend service for operator workflows
 
-### Ephemeral runtime
-
-The service does not persist uploaded PDFs, validation runs, or feedback records.
-
-- uploaded PDFs are copied into a temporary working directory only for the duration of the analysis
-- rendered page images are temporary and removed after use
-- the React frontend previews the original PDF from the browser's local file object, not from a server-side public URL
-
-3. **Run CLI (one-off PDF validation)**
+2. **Run CLI (one-off PDF validation)**
    python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
-4. **Run API**
+3. **Run API**
    python -m uvicorn src.main:app --reload --port 8000
    Then use the versioned API under `/api/v1`.
    Main extraction route: `POST /api/v1/validations` with `multipart/form-data`:
    - field `pdf`: your PDF file
    - field `rules_json`: selected validation rules sent from the frontend
 
-5. **Run Frontend**
+4. **Run Frontend**
    cd frontend
    npm install
    npm run dev
 
    The browser will show a Microsoft sign-in gate before the workspace loads.
 
-6. **Run with Docker Compose**
+5. **Run with Docker Compose**
    docker compose up --build
 
 The compose file starts two services:
@@ -221,11 +221,35 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
 
 ## Architecture
 
-- **API**: FastAPI routers under `/api/v1`
-- **Pipeline**: PDF extraction and derived analysis live in `src/pipeline/`
-- **Services**: business orchestration lives in `src/services/`
-- **Providers**: text and vision integrations live in `src/providers/`
+- **API**: FastAPI routers under `src/api/routers/` (validations, rules, export, feedback, health, auth)
+- **Pipeline**: PDF extraction and derived analysis live in `src/pipeline/`; `orchestrator.py` drives the five-stage sequence
+- **Services**: business orchestration lives in `src/services/`; `validation_job_service.py` manages the in-memory threaded job queue
+- **Providers**: text and vision integrations live in `src/providers/` (`text/` and `vision/` subdirs, each with `base.py`, `openai.py`, `claude.py`, `factory.py`)
 - **Schemas**: request and response contracts live in `src/schemas/`
+- **Core**: settings, Azure auth, logging, and security middleware live in `src/core/`
+- **Rules**: 50+ validation rule definitions in `rules/rules.json`
+- **Config**: LLM system prompts in `config/text_analysis_system_prompt.md` and `config/vision_analysis_system_prompt.md`
+- **Integration tests**: `tests/integration/` — `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrised verdict assertions)
+- **Test fixtures**: PDF files used by integration tests live in `tests/fixtures/documents/` (not committed; add locally)
+- **Infra**: Azure Bicep templates (Container Apps, ACR, Log Analytics) live in `infra/`
+- **Docs**: detailed documentation for pipeline, providers, auth, and deployment live in `docs/`
+
+### Provider Abstraction
+
+Text and vision analysis are provider-agnostic. The active provider is set via `.env` (`TEXT_PROVIDER=openai|claude`, `VISION_PROVIDER=openai|claude`). Provider adapters implement a shared base class interface; the factory pattern in each `factory.py` resolves the correct adapter at startup.
+
+### Async Job Queue
+
+Validation runs are dispatched as background jobs. Clients poll `GET /api/v1/validations/jobs/{job_id}` for status; cancellation is supported via `POST /api/v1/validations/jobs/{job_id}/cancel`. The queue is in-memory — no persistent storage; jobs are lost on restart.
+
+### Ephemeral Storage
+
+The service does not persist uploaded PDFs, validation runs, or feedback records.
+
+- uploaded PDFs are written to `data/tmp/` during processing and deleted afterwards
+- rendered page images are temporary and removed after use
+- feedback is stored in-memory only
+- the React frontend previews the original PDF from the browser's local file object, not from a server-side public URL
 
 ---
 
@@ -242,6 +266,51 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
   - Microsoft Entra ID tenant, audience, scope, and allowed SPA client app IDs
   - temporary workspace location via `LOCAL_WORKDIR`
   - legacy `ENABLE_UI` parsing for backward compatibility only; the backend no longer mounts the built-in UI
+
+## Testing
+
+### Unit tests
+
+Unit tests cover individual components (page classification, number normalisation, etc.) and run without API keys:
+
+```bash
+# Run all unit tests
+pytest
+
+# Run a single test file or test
+pytest tests/test_page_classifier.py
+pytest -k "test_name"
+```
+
+### Integration tests
+
+Integration tests run real PDF documents through the full validation pipeline — including live LLM calls — and assert that each rule produces the expected verdict. They require a valid `.env` with API keys.
+
+```bash
+# Run all integration tests
+pytest tests/integration -m integration
+
+# Filter by case or rule name
+pytest tests/integration -m integration -k "my_fund/BS-FMT"
+
+# Verbose output — shows the full node ID and failure details
+pytest tests/integration -m integration -v
+```
+
+Test cases are configured in `tests/integration/cases.yaml`. Each case lists a document path, the rule IDs to run, and the expected verdict per rule (`pass` | `fail` | `needs_review` | `not_applicable`).
+
+**Adding a new test case:**
+
+1. Place the PDF in `tests/fixtures/documents/`
+2. Add a case block to `tests/integration/cases.yaml` with `id`, `document`, and `rules` (leave `expected` out)
+3. Run the discovery script to see what the pipeline returns:
+   ```bash
+   chmod +x scripts/update_integration_expectations.py
+   python scripts/update_integration_expectations.py
+   ```
+4. Paste the printed `expected` block into `cases.yaml` and commit
+
+---
 
 ## Notes
 

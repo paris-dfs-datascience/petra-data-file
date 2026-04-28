@@ -8,16 +8,25 @@ Petra Vision is an AI-powered PDF document validation tool. It extracts content 
 
 ## Commands
 
+### Setup
+
+```bash
+# Mac/Linux
+python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+
+# Windows
+python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+```
+
+Required before running the API, tests, or any scripts.
+
 ### Backend
 
 ```bash
-# Install dependencies
-python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-
 # Run API server
 python -m uvicorn src.main:app --reload --port 8000
 
-# Run all tests
+# Run all unit tests
 pytest
 
 # Run a single test file or test
@@ -27,6 +36,35 @@ pytest -k "test_name"
 # Run CLI validation (one-off, no server)
 python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
 ```
+
+### Integration Tests
+
+Integration tests run fixed documents through the live validation pipeline (real LLM calls) and assert that each rule produces the expected verdict. They require a valid `.env` with API keys.
+
+```bash
+# Run all integration tests
+pytest tests/integration -m integration
+
+# Run a specific case or rule (substring match on the node ID)
+pytest tests/integration -m integration -k "my_fund"
+pytest tests/integration -m integration -k "my_fund/BS-FMT"
+
+# Verbose output — shows the full node ID and failure details
+pytest tests/integration -m integration -v
+```
+
+**Adding a new test case:**
+
+1. Place the PDF in `tests/fixtures/documents/`
+2. Add a case block to `tests/integration/cases.yaml` with `id`, `document`, and `rules` (leave `expected` out)
+3. Run the discovery script — it calls the pipeline and prints a ready-to-paste `expected` block:
+   ```bash
+   chmod +x scripts/update_integration_expectations.py
+   python scripts/update_integration_expectations.py
+   ```
+4. Review the printed verdicts, paste the `expected` block into `cases.yaml`, commit
+
+Test cases are defined in `tests/integration/cases.yaml`. Each case specifies the document path (relative to repo root), the list of rule IDs to run, and the expected `verdict` per rule (`pass` | `fail` | `needs_review` | `not_applicable`). An optional `matched_pages` list can assert which pages the rule fired on.
 
 ### Frontend
 
@@ -97,7 +135,9 @@ The core logic lives in `src/pipeline/` and runs in five sequential stages:
 - `config/app.yaml` — PDF rendering DPI, vision concurrency/temperature, report toggles
 - `config/text_analysis_system_prompt.md` / `config/vision_analysis_system_prompt.md` — LLM system prompts (loaded at runtime by the analyzers)
 - `flag_analysis/` — standalone LLM-powered feedback audit tool
-- `scripts/` — utilities: `import_rules_from_excel.py` (bulk rule import), `entra/sync_apps.py` (Entra app registration automation)
+- `scripts/` — utilities: `import_rules_from_excel.py` (bulk rule import), `entra/sync_apps.py` (Entra app registration automation), `update_integration_expectations.py` (discovery helper for integration tests)
+- `tests/integration/` — integration test suite: `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrized verdict assertions)
+- `tests/fixtures/documents/` — PDF files used by integration tests (not committed; add locally or via shared storage)
 - `infra/` — Azure Bicep templates (Container Apps, ACR, Log Analytics)
 - `docs/` — detailed documentation for pipeline, providers, auth, deployment, etc.
 
