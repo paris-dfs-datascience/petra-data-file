@@ -40,6 +40,14 @@ def _tables_blob(page: dict) -> str:
     return "\n\n".join(rendered_tables)
 
 
+_NUMERIC_RULE_ID_PREFIXES = ("NUM-", "BS-", "OPS-", "SCF-", "ARITH-")
+
+
+def _rule_prefers_table_numbers(rule: dict) -> bool:
+    rule_id = str(rule.get("id", "")).upper()
+    return any(rule_id.startswith(prefix) for prefix in _NUMERIC_RULE_ID_PREFIXES)
+
+
 def _rule_needs_layout_context(rule: dict) -> bool:
     rule_id = str(rule.get("id", "")).upper()
     if rule_id == "FMT-HEADINGS":
@@ -95,6 +103,13 @@ def _serialize_page_content(page: dict, rule: dict) -> str:
     ]
     if _rule_needs_layout_context(rule):
         sections.append("Layout Metadata:\n" + _layout_blob(page))
+    if _rule_prefers_table_numbers(rule):
+        sections.append(
+            "Arithmetic note: when verifying totals or cross-footing, source all numeric values from "
+            "the Extracted Tables block above rather than the Plain Extracted Text. "
+            "The plain text uses layout-preserved spacing that can cause a single number to appear split "
+            "across tokens; the table cells contain each value as a single parsed string."
+        )
     return "\n\n".join(section for section in sections if section.strip())
 
 

@@ -5,6 +5,7 @@ Goal: evaluate exactly one text/content rule against the extracted content from 
 Instructions:
 - Use only the extracted content provided in the request.
 - Treat the input as extracted PDF content. It may include plain page text, extracted tables, and positional metadata for top text lines.
+- Mid-number whitespace (e.g. `8 9,674`, `1 86,554`) is almost always a PDF extraction artifact. Reconstruct the intended number and do not raise a finding solely on the spacing.
 - The text was extracted with layout preservation enabled, so spacing and line breaks may help reveal table-like regions.
 - When a rule refers to tables or charts, interpret that as structured numeric regions visible in the extracted page text.
 - A single page may contain multiple separate tables or numeric sections; consider each relevant section before deciding.

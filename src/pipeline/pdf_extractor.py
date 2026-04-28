@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from statistics import mean, median
 
 import pdfplumber
@@ -8,10 +9,27 @@ from src.core.config import AppYaml
 from src.pipeline.page_classifier import classify_page
 
 
+# Match a single space that splits a digit from the continuation of a thousands-formatted number.
+# Single-space-only (not \s+) so multi-space column gaps in layout text are never collapsed.
+_COMMA_THOUSANDS_RE = re.compile(r"(?<=\d) (?=\d{0,2},\d{3})")
+# Match a single space that splits a digit from the rest of a decimal number.
+_DECIMAL_REJOIN_RE = re.compile(r"(?<=\d) (?=\d{1,3}\.\d)")
+# Match whitespace between a digit and a percent sign.
+_PCT_SPACE_RE = re.compile(r"(?<=\d)\s+(?=%)")
+
+
+def _fix_number_artifacts(text: str) -> str:
+    """Remove stray spaces that pdfplumber injects inside numbers during layout extraction."""
+    text = _COMMA_THOUSANDS_RE.sub("", text)
+    text = _DECIMAL_REJOIN_RE.sub("", text)
+    text = _PCT_SPACE_RE.sub("", text)
+    return text
+
+
 def _normalize_cell(value: object) -> str:
     if value is None:
         return ""
-    return str(value).strip()
+    return _fix_number_artifacts(str(value).strip())
 
 
 def _as_float(value: object) -> float:
@@ -289,7 +307,7 @@ class PdfExtractor:
         pages: list[dict] = []
         with pdfplumber.open(pdf_path) as pdf:
             for index, page in enumerate(pdf.pages, start=1):
-                text = self._extract_page_text(page)
+                text = _fix_number_artifacts(self._extract_page_text(page))
                 detected_tables = page.find_tables() or []
                 tables = []
                 table_regions = []
