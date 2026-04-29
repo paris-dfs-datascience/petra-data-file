@@ -31,11 +31,21 @@ pytest
 
 # Run a single test file or test
 pytest tests/test_page_classifier.py
+pytest tests/test_number_normalization.py
 pytest -k "test_name"
+
+# Run smoke test (no API keys required)
+pytest tests/smoke_test.py
 
 # Run CLI validation (one-off, no server)
 python -m src.main validate --pdf ./tests/sample.pdf --out ./data/reports/report.json
 ```
+
+Unit test files:
+- `tests/test_page_classifier.py` — page type classification and rule-to-page applicability logic
+- `tests/test_number_normalization.py` — pdfplumber number-artifact normalization helper
+- `tests/test_double_underline.py` — double-underline vector-hint extraction and detection logic
+- `tests/smoke_test.py` — full pipeline structural check against `tests/sample.pdf`; skips silently if the file is absent
 
 ### Integration Tests
 
@@ -116,8 +126,8 @@ The core logic lives in `src/pipeline/` and runs in five sequential stages:
 
 1. **PDF Extraction** (`pdf_extractor.py`) — pdfplumber extracts text and tables per page; `page_classifier.py` assigns each page a type (e.g. `balance_sheet`) used for rule filtering
 2. **Text Rule Analysis** (`text_rule_analyzer.py`) — LLM evaluates text-based rules against extracted content
-3. **Page Rendering** (`pdf_renderer.py`) — PyMuPDF renders pages as images at configurable DPI
-4. **Vision Rule Analysis** (`vision_rule_analyzer.py`) — LLM + vision evaluates visual rules against rendered images; supports configurable concurrency
+3. **Page Rendering** (`pdf_renderer.py`) — PyMuPDF renders pages as images at configurable DPI; also extracts PDF vector drawing metadata (e.g. double-underline line positions) for rules that benefit from geometry hints
+4. **Vision Rule Analysis** (`vision_rule_analyzer.py`) — LLM + vision evaluates visual rules against rendered images; supports configurable concurrency; injects PDF vector metadata into the prompt for rules that use it (e.g. `FMT-DOUBLE-UNDERLINE`)
 5. **Result Aggregation** (`result_builder.py`) — merges verdicts into a `DocumentValidationResponse`
 
 `src/pipeline/orchestrator.py` drives the pipeline and is called by `src/services/validation_service.py`.
@@ -131,11 +141,11 @@ The core logic lives in `src/pipeline/` and runs in five sequential stages:
 - `src/schemas/` — Pydantic request/response models
 - `src/core/` — settings (`pydantic-settings` + `config/app.yaml`), Azure auth, logging, security middleware
 - `frontend/src/` — React SPA with Microsoft Entra ID auth gate (`@azure/msal-react`)
-- `rules/rules.json` — 50+ validation rule definitions (text and vision types)
+- `rules/rules.json` — validation rule definitions (text and vision types)
 - `config/app.yaml` — PDF rendering DPI, vision concurrency/temperature, report toggles
 - `config/text_analysis_system_prompt.md` / `config/vision_analysis_system_prompt.md` — LLM system prompts (loaded at runtime by the analyzers)
 - `flag_analysis/` — standalone LLM-powered feedback audit tool
-- `scripts/` — utilities: `import_rules_from_excel.py` (bulk rule import), `entra/sync_apps.py` (Entra app registration automation), `update_integration_expectations.py` (discovery helper for integration tests)
+- `scripts/` — utilities: `import_rules_from_excel.py` (bulk rule import), `entra/sync_apps.py` (Entra app registration automation), `update_integration_expectations.py` (discovery helper for integration tests), `debug_double_underlines.py` (PDF line-geometry inspector for debugging double-underline detection)
 - `tests/integration/` — integration test suite: `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrized verdict assertions)
 - `tests/fixtures/documents/` — PDF files used by integration tests (not committed; add locally or via shared storage)
 - `infra/` — Azure Bicep templates (Container Apps, ACR, Log Analytics)

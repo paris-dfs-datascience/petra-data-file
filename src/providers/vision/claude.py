@@ -7,7 +7,7 @@ from typing import Any
 from anthropic import Anthropic
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from src.providers.analysis_result import RULE_RESULT_JSON_SCHEMA, compact_rule_payload
+from src.providers.analysis_result import RULE_RESULT_JSON_SCHEMA, build_vector_data_text, compact_rule_payload
 from src.providers.vision.base import VisionProvider
 
 
@@ -108,6 +108,7 @@ class ClaudeVisionProvider(VisionProvider):
                             "Evaluate the following vision rule against the rendered PDF page image.\n"
                             "Be concise.\n\n"
                             f"{compact_rule_payload(rule, fallback_analysis_type='vision')}\n"
+                            f"{build_vector_data_text(page_image)}"
                             "RENDERED PDF PAGE:\n"
                             f"PDF page {page_number}\n"
                         ),

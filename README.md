@@ -227,10 +227,10 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
 - **Providers**: text and vision integrations live in `src/providers/` (`text/` and `vision/` subdirs, each with `base.py`, `openai.py`, `claude.py`, `factory.py`)
 - **Schemas**: request and response contracts live in `src/schemas/`
 - **Core**: settings, Azure auth, logging, and security middleware live in `src/core/`
-- **Rules**: 50+ validation rule definitions in `rules/rules.json`
+- **Rules**: validation rule definitions in `rules/rules.json`
 - **Config**: LLM system prompts in `config/text_analysis_system_prompt.md` and `config/vision_analysis_system_prompt.md`
 - **Integration tests**: `tests/integration/` — `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrised verdict assertions)
-- **Test fixtures**: PDF files used by integration tests live in `tests/fixtures/documents/` (not committed; add locally)
+- **Test fixtures**: PDF files used by integration tests live in `tests/fixtures/documents/`
 - **Infra**: Azure Bicep templates (Container Apps, ACR, Log Analytics) live in `infra/`
 - **Docs**: detailed documentation for pipeline, providers, auth, and deployment live in `docs/`
 
@@ -279,7 +279,21 @@ pytest
 
 # Run a single test file or test
 pytest tests/test_page_classifier.py
+pytest tests/test_number_normalization.py
 pytest -k "test_name"
+```
+
+Unit test files:
+- `tests/test_page_classifier.py` — page type classification and rule-to-page applicability logic
+- `tests/test_number_normalization.py` — pdfplumber number-artifact normalization helper
+- `tests/test_double_underline.py` — double-underline vector-hint extraction and detection logic
+
+### Smoke test
+
+The smoke test runs the full extraction pipeline against `tests/sample.pdf` without LLM calls. It verifies the output structure (document_id, pages, analysis, rule_assessments) but skips silently if the sample PDF is missing.
+
+```bash
+pytest tests/smoke_test.py
 ```
 
 ### Integration tests

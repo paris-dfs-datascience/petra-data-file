@@ -205,8 +205,12 @@ class VisionRuleAnalyzer:
                     if not rule_applies_to_page(rule, page_types_by_number.get(page_number) or []):
                         continue
                     evaluated_any_page = True
+                    page_image_for_rule = page_image
+                    if rule_id == "FMT-DOUBLE-UNDERLINE":
+                        hints = self.renderer.extract_double_underline_hints(pdf_path, page_number - 1)
+                        page_image_for_rule = {**page_image, "double_underline_hints": hints}
                     try:
-                        raw_result = provider.evaluate_rule(page_image=page_image, rule=rule, system_prompt=self.system_prompt)
+                        raw_result = provider.evaluate_rule(page_image=page_image_for_rule, rule=rule, system_prompt=self.system_prompt)
                         citations = [
                             {
                                 "page": int(item.get("page", page_number) or page_number),
