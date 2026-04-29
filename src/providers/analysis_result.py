@@ -52,6 +52,23 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
+def build_vector_data_text(page_image: dict) -> str:
+    hints = page_image.get("double_underline_hints")
+    if hints is None:
+        return ""
+    if hints:
+        positions = ", ".join(str(h["y_fraction"]) for h in hints)
+        return (
+            "VECTOR DATA (extracted from PDF drawing commands — treat as authoritative):\n"
+            f"Double underlines detected at the following page positions (fraction of page height from top): [{positions}]\n"
+            "Any total row whose underline falls near these y-positions has a confirmed double underline.\n\n"
+        )
+    return (
+        "VECTOR DATA (extracted from PDF drawing commands — treat as authoritative):\n"
+        "No double underline line pairs detected in the PDF drawing commands for this page.\n\n"
+    )
+
+
 def compact_rule_payload(rule: dict, fallback_analysis_type: str) -> str:
     return (
         f"RULE ID: {rule.get('id', '')}\n"

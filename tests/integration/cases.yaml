@@ -69,3 +69,14 @@ cases:
         verdict: pass
       - rule_id: NUM-CROSSFOOT
         verdict: pass
+  - id: text_underline_pass
+    description: "Tests that statement totals and subtotals are correctly underlined -single or double-. PASS scenario."
+    document: tests/fixtures/documents/underline_test_scenarios_pass.pdf
+    rules:
+      - FMT-DOUBLE-UNDERLINE
+  - id: text_underline_fail
+    description: "Tests that statement totals and subtotals are correctly underlined -single or double-. FAIL scenario."
+    document: tests/fixtures/documents/underline_test_scenarios_fail.pdf
+    rules:
+      - FMT-DOUBLE-UNDERLINE
+

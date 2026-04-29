@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.pipeline.page_classifier import (
     BALANCE_SHEET,
     COVER_PAGE,
