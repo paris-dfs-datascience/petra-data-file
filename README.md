@@ -14,7 +14,7 @@ The operator workflow is protected by Microsoft Entra ID. The React frontend req
 
 ## Setup
 
-Create and activate a virtual environment, then install dependencies:
+Requires Python 3.10 or newer. Create and activate a virtual environment, then install dependencies:
 
 ```bash
 # Windows
@@ -230,7 +230,7 @@ The pipeline returns results grouped by **page**, and it also returns a dedicate
 - **Rules**: 50+ validation rule definitions in `rules/rules.json`
 - **Config**: LLM system prompts in `config/text_analysis_system_prompt.md` and `config/vision_analysis_system_prompt.md`
 - **Integration tests**: `tests/integration/` — `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrised verdict assertions)
-- **Test fixtures**: PDF files used by integration tests live in `tests/fixtures/documents/` (not committed; add locally)
+- **Test fixtures**: PDF files used by integration tests live in `tests/fixtures/documents/`. Synthetic test fixtures may be committed; real client documents stay local (do not commit)
 - **Infra**: Azure Bicep templates (Container Apps, ACR, Log Analytics) live in `infra/`
 - **Docs**: detailed documentation for pipeline, providers, auth, and deployment live in `docs/`
 
@@ -305,7 +305,6 @@ Test cases are configured in `tests/integration/cases.yaml`. Each case lists a d
 2. Add a case block to `tests/integration/cases.yaml` with `id`, `document`, and `rules` (leave `expected` out)
 3. Run the discovery script to see what the pipeline returns:
    ```bash
-   chmod +x scripts/update_integration_expectations.py
    python scripts/update_integration_expectations.py
    ```
 4. Paste the printed `expected` block into `cases.yaml` and commit

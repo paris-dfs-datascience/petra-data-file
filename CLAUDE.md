@@ -10,6 +10,8 @@ Petra Vision is an AI-powered PDF document validation tool. It extracts content 
 
 ### Setup
 
+Requires Python 3.10 or newer.
+
 ```bash
 # Mac/Linux
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
@@ -59,7 +61,6 @@ pytest tests/integration -m integration -v
 2. Add a case block to `tests/integration/cases.yaml` with `id`, `document`, and `rules` (leave `expected` out)
 3. Run the discovery script — it calls the pipeline and prints a ready-to-paste `expected` block:
    ```bash
-   chmod +x scripts/update_integration_expectations.py
    python scripts/update_integration_expectations.py
    ```
 4. Review the printed verdicts, paste the `expected` block into `cases.yaml`, commit
@@ -137,7 +138,7 @@ The core logic lives in `src/pipeline/` and runs in five sequential stages:
 - `flag_analysis/` — standalone LLM-powered feedback audit tool
 - `scripts/` — utilities: `import_rules_from_excel.py` (bulk rule import), `entra/sync_apps.py` (Entra app registration automation), `update_integration_expectations.py` (discovery helper for integration tests)
 - `tests/integration/` — integration test suite: `cases.yaml` (test case definitions), `conftest.py` (session-scoped pipeline fixture), `test_pipeline.py` (parametrized verdict assertions)
-- `tests/fixtures/documents/` — PDF files used by integration tests (not committed; add locally or via shared storage)
+- `tests/fixtures/documents/` — PDF files used by integration tests. Synthetic test fixtures may be committed; do not commit real client documents (add those locally or via shared storage)
 - `infra/` — Azure Bicep templates (Container Apps, ACR, Log Analytics)
 - `docs/` — detailed documentation for pipeline, providers, auth, deployment, etc.
 
