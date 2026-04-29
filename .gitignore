@@ -7,3 +7,5 @@ data
 **/.vite
 frontend/dist
 .DS_Store
+.DS_Store
+**/.DS_Store
