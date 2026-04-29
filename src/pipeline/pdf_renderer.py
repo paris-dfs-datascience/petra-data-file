@@ -24,13 +24,19 @@ class PdfRenderer:
             doc.close()
         return paths
 
-    def extract_double_underline_hints(self, pdf_path: str, page_index: int) -> list[dict]:
+    def extract_double_underline_hints(self, pdf_path: str, page_index: int) -> list[dict] | None:
         """Return y-positions (as page-height fractions) of double-underline line pairs found in PDF vector data.
+
+        Returns:
+            - list of {"y_fraction": float} entries, one per detected pair (empty list if none detected)
+            - None if extraction failed (e.g. corrupted PDF, fitz error) — distinct from "no pairs found"
+              so callers can avoid presenting algorithmic absence as authoritative when the algorithm
+              didn't actually run.
 
         Many PDF generators render each visible line as two coincident (0pt gap) paths — a rendering artifact.
         The algorithm therefore works in two stages:
           1. Collapse coincident paths (gap <= 0.1pt) into single logical lines.
-          2. Detect double underlines as pairs of logical lines 0.5–3pt apart (the actual accounting separation).
+          2. Detect double underlines as pairs of logical lines 0.3–3pt apart (the actual accounting separation).
         """
         try:
             doc = fitz.open(pdf_path)
@@ -90,7 +96,7 @@ class PdfRenderer:
             doc.close()
             return hints
         except Exception:
-            return []
+            return None
 
     def _add_page_frame(self, image_path: str) -> None:
         image = Image.open(image_path).convert("RGB")

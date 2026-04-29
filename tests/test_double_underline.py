@@ -203,12 +203,12 @@ class TestExtractDoubleUnderlineHints:
 
     # --- error handling ---
 
-    def test_exception_from_fitz_returns_empty_list(self):
+    def test_exception_from_fitz_returns_none(self):
         mock_fitz = MagicMock()
         mock_fitz.open.side_effect = RuntimeError("file not found")
         with patch("src.pipeline.pdf_renderer.fitz", mock_fitz):
             result = PdfRenderer().extract_double_underline_hints("missing.pdf", 0)
-        assert result == []
+        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +222,13 @@ class TestBuildVectorDataText:
 
     def test_key_absent_returns_empty_string(self):
         assert build_vector_data_text({}) == ""
+
+    def test_extraction_failure_emits_no_block(self):
+        # When the renderer signals extraction failure (None), the prompt must NOT
+        # claim authoritative absence — emit nothing and let the LLM rely on the image.
+        result = build_vector_data_text({"double_underline_hints": None})
+        assert result == ""
+        assert "VECTOR DATA" not in result
 
     def test_empty_hints_list_returns_no_detection_message(self):
         result = build_vector_data_text({"double_underline_hints": []})

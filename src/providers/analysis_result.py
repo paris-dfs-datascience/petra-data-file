@@ -53,7 +53,9 @@ RULE_RESULT_JSON_SCHEMA: dict[str, Any] = {
 
 
 def build_vector_data_text(page_image: dict) -> str:
-    hints = page_image.get("double_underline_hints")
+    if "double_underline_hints" not in page_image:
+        return ""
+    hints = page_image["double_underline_hints"]
     if hints is None:
         return ""
     if hints:
