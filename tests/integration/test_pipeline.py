@@ -29,13 +29,21 @@ def _collect_params() -> list[pytest.param]:
     params: list[pytest.param] = []
     for case in cases:
         for exp in case.get("expected") or []:
+            pages_filter = exp.get("pages")
+            pages_suffix = (
+                f"[p{','.join(str(p) for p in sorted(pages_filter))}]"
+                if pages_filter
+                else ""
+            )
+            node_id = f"{case['id']}/{exp['rule_id']}{pages_suffix}"
             params.append(
                 pytest.param(
                     case["id"],
                     exp["rule_id"],
                     exp["verdict"],
                     exp.get("matched_pages"),
-                    id=f"{case['id']}/{exp['rule_id']}",
+                    pages_filter,
+                    id=node_id,
                 )
             )
     return params
@@ -44,10 +52,29 @@ def _collect_params() -> list[pytest.param]:
 _PARAMS = _collect_params()
 
 
+def _reaggregate_verdict(page_results: list[dict], rule_id: str, pages: list[int]) -> str:
+    """Re-aggregate a verdict from page-level results restricted to the given pages."""
+    pages_set = set(pages)
+    filtered = [
+        r
+        for r in page_results
+        if r.get("rule_id") == rule_id
+        and int(r.get("page", 0)) in pages_set
+        and r.get("execution_status") == "completed"
+    ]
+    if not filtered:
+        return "needs_review"
+    if any(r.get("verdict") == "fail" for r in filtered):
+        return "fail"
+    if all(r.get("verdict") in {"pass", "not_applicable"} for r in filtered):
+        return "pass"
+    return "needs_review"
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "case_id,rule_id,expected_verdict,expected_pages",
-    _PARAMS if _PARAMS else [pytest.param("_none", "_none", "_none", None, id="no_cases")],
+    "case_id,rule_id,expected_verdict,expected_pages,pages_filter",
+    _PARAMS if _PARAMS else [pytest.param("_none", "_none", "_none", None, None, id="no_cases")],
 )
 def test_rule_verdict(
     pipeline_results: dict,
@@ -55,6 +82,7 @@ def test_rule_verdict(
     rule_id: str,
     expected_verdict: str,
     expected_pages: list[int] | None,
+    pages_filter: list[int] | None,
 ) -> None:
     if case_id == "_none":
         pytest.skip("No integration test cases defined in cases.yaml")
@@ -78,12 +106,25 @@ def test_rule_verdict(
     )
 
     actual = assessments[rule_id]
-    assert actual["verdict"] == expected_verdict, (
-        f"Case '{case_id}' / Rule '{rule_id}': "
-        f"expected verdict '{expected_verdict}', got '{actual['verdict']}'\n"
-        f"Summary: {actual.get('summary', '')}\n"
-        f"Findings: {actual.get('findings', [])}"
-    )
+
+    if pages_filter is not None:
+        text_page_results = result.get("analysis", {}).get("text_page_results", [])
+        visual_page_results = result.get("analysis", {}).get("visual_page_results", [])
+        actual_verdict = _reaggregate_verdict(
+            text_page_results + visual_page_results, rule_id, pages_filter
+        )
+        assert actual_verdict == expected_verdict, (
+            f"Case '{case_id}' / Rule '{rule_id}' / Pages {sorted(pages_filter)}: "
+            f"expected verdict '{expected_verdict}', got '{actual_verdict}'\n"
+            f"Findings: {actual.get('findings', [])}"
+        )
+    else:
+        assert actual["verdict"] == expected_verdict, (
+            f"Case '{case_id}' / Rule '{rule_id}': "
+            f"expected verdict '{expected_verdict}', got '{actual['verdict']}'\n"
+            f"Summary: {actual.get('summary', '')}\n"
+            f"Findings: {actual.get('findings', [])}"
+        )
 
     if expected_pages is not None:
         assert sorted(actual.get("matched_pages") or []) == sorted(expected_pages), (
