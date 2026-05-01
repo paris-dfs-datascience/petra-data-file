@@ -23,7 +23,7 @@ class ValidationPipeline:
         self.app_config = app_config
         self.settings = settings
         self.extractor = PdfExtractor(app_config=app_config)
-        self.text_rule_analyzer = TextRuleAnalyzer(settings=settings)
+        self.text_rule_analyzer = TextRuleAnalyzer(app_config=app_config, settings=settings)
         self.vision_rule_analyzer = VisionRuleAnalyzer(app_config=app_config, settings=settings)
 
     def build_rule_assessments(

@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timedelta
 
-from src.core.config import Settings
+from src.core.config import AppYaml, Settings
 from src.core.prompting import load_prompt
-
-logger = logging.getLogger("petra.pipeline.text")
 from src.pipeline.page_classifier import rule_applies_to_page
 from src.providers.text.factory import build_text_provider
+
+logger = logging.getLogger("petra.pipeline.text")
 
 
 TEXT_PROMPT_PATH = "config/text_analysis_system_prompt.md"
@@ -152,8 +154,9 @@ def _build_not_applicable_rule_result(rule: dict, reason: str) -> dict:
 
 
 class TextRuleAnalyzer:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, app_config: AppYaml, settings: Settings) -> None:
         self.settings = settings
+        self.concurrent_requests = app_config.pipeline.concurrent_requests
         self.system_prompt = load_prompt(TEXT_PROMPT_PATH)
 
     def _aggregate_rule_results(self, rule: dict, page_results: list[dict]) -> dict:
@@ -226,79 +229,85 @@ class TextRuleAnalyzer:
             ]
             return {
                 "rule_results": {
-                    rule.get("id", ""): _build_skipped_result(
-                        rule,
-                        error_message,
-                    )
+                    rule.get("id", ""): _build_skipped_result(rule, error_message)
                     for rule in text_rules
                 },
                 "page_results": skipped_page_results,
             }
+
         results: dict[str, dict] = {}
         page_results: list[dict] = []
+        per_rule_page_results: dict[str, list[dict]] = {rule.get("id", ""): [] for rule in text_rules}
+        lock = threading.Lock()
+
+        # Mark rules with no applicable pages upfront; collect work items for the rest.
+        applicable_pairs: list[tuple[dict, dict]] = []
         for rule in text_rules:
             rule_id = rule.get("id", "")
-            per_rule_page_results: list[dict] = []
-            evaluated_any_page = False
-            for page in pages:
-                if is_cancelled and is_cancelled():
-                    results[rule_id] = (
-                        self._aggregate_rule_results(rule, per_rule_page_results)
-                        if evaluated_any_page
-                        else _build_not_applicable_rule_result(
-                            rule,
-                            "No pages matched this rule's section before cancellation.",
-                        )
-                    )
-                    return {"rule_results": results, "page_results": page_results}
-                if not rule_applies_to_page(rule, page.get("page_type") or []):
-                    continue
-                evaluated_any_page = True
-                page_number = int(page.get("page", 0))
-                try:
-                    document_content = _serialize_page_content(page, rule)
-                    _t0 = time.perf_counter()
-                    logger.info("LLM call start: type=text rule=%s page=%d", rule_id, page_number)
-                    raw_result = provider.evaluate_rule(document_content=document_content, rule=rule, system_prompt=self.system_prompt)
-                    logger.info("LLM call done: type=text rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
-                    citations = raw_result.get("citations", [])
-                    normalized_citations = [
+            matching = [p for p in pages if rule_applies_to_page(rule, p.get("page_type") or [])]
+            if not matching:
+                results[rule_id] = _build_not_applicable_rule_result(rule, "No pages matched this rule's section.")
+            else:
+                for page in matching:
+                    applicable_pairs.append((rule, page))
+
+        def _call(rule: dict, page: dict) -> dict | None:
+            if is_cancelled and is_cancelled():
+                return None
+            rule_id = rule.get("id", "")
+            page_number = int(page.get("page", 0))
+            try:
+                document_content = _serialize_page_content(page, rule)
+                _t0 = time.perf_counter()
+                logger.info("LLM call start: type=text rule=%s page=%d", rule_id, page_number)
+                raw_result = provider.evaluate_rule(document_content=document_content, rule=rule, system_prompt=self.system_prompt)
+                logger.info("LLM call done: type=text rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
+                citations = raw_result.get("citations", [])
+                return {
+                    "page": page_number,
+                    "rule_id": raw_result.get("rule_id", rule_id),
+                    "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
+                    "analysis_type": "text",
+                    "execution_status": "completed",
+                    "verdict": raw_result.get("verdict", "needs_review"),
+                    "summary": raw_result.get("summary", ""),
+                    "reasoning": raw_result.get("reasoning", ""),
+                    "findings": raw_result.get("findings", []),
+                    "citations": [
                         {
                             "page": int(item.get("page", page_number) or page_number),
                             "evidence": item.get("evidence", ""),
                         }
                         for item in citations
-                    ]
-                    page_result = {
-                        "page": page_number,
-                        "rule_id": raw_result.get("rule_id", rule_id),
-                        "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
-                        "analysis_type": "text",
-                        "execution_status": "completed",
-                        "verdict": raw_result.get("verdict", "needs_review"),
-                        "summary": raw_result.get("summary", ""),
-                        "reasoning": raw_result.get("reasoning", ""),
-                        "findings": raw_result.get("findings", []),
-                        "citations": normalized_citations,
-                        "notes": [f"Confidence: {raw_result.get('confidence', 'unknown')}"],
-                    }
-                except Exception as exc:
-                    page_result = _build_skipped_result(
-                        rule,
-                        f"Text analysis failed: {exc}",
-                        execution_status="error",
-                        page=page_number,
-                    )
-                per_rule_page_results.append(page_result)
-                page_results.append(page_result)
-                results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
-                if on_page_result:
-                    on_page_result(page_result, dict(results), list(page_results))
-            if evaluated_any_page:
-                results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
-            else:
-                results[rule_id] = _build_not_applicable_rule_result(
-                    rule,
-                    "No pages matched this rule's section.",
-                )
+                    ],
+                    "notes": [f"Confidence: {raw_result.get('confidence', 'unknown')}"],
+                }
+            except Exception as exc:
+                return _build_skipped_result(rule, f"Text analysis failed: {exc}", execution_status="error", page=page_number)
+
+        with ThreadPoolExecutor(max_workers=self.concurrent_requests) as executor:
+            future_to_rule = {executor.submit(_call, rule, page): rule for rule, page in applicable_pairs}
+            for future in as_completed(future_to_rule):
+                if is_cancelled and is_cancelled():
+                    for f in future_to_rule:
+                        f.cancel()
+                    break
+                rule = future_to_rule[future]
+                rule_id = rule.get("id", "")
+                page_result = future.result()
+                if page_result is None:
+                    continue
+                with lock:
+                    per_rule_page_results[rule_id].append(page_result)
+                    page_results.append(page_result)
+                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results[rule_id])
+                    if on_page_result:
+                        on_page_result(page_result, dict(results), list(page_results))
+
+        # Any rule that had applicable pages but nothing collected (fully cancelled before first result)
+        for rule in text_rules:
+            rule_id = rule.get("id", "")
+            if rule_id not in results:
+                results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results[rule_id])
+
         return {"rule_results": results, "page_results": page_results}
