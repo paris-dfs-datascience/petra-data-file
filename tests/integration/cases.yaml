@@ -49,13 +49,25 @@
 #       - NUM-REFOOT
 #       - GRAM-SPELL
 #     expected:
+
+#       # Basic: assert the overall verdict aggregated across all applicable pages.
 #       - rule_id: BS-FMT
 #         verdict: pass
-#       - rule_id: NUM-REFOOT
-#         verdict: pass
+#
+#       # matched_pages: also assert which 1-based page numbers the rule fired on.
 #       - rule_id: GRAM-SPELL
 #         verdict: fail
 #         matched_pages: [5, 9]
+#
+#       # pages: scope the verdict to specific pages only. All other pages are excluded from this assertion.
+#       # Multi-assertion is supported: same rule, different page subsets and verdicts.
+#       # The test suite passes only when ALL assertions hold.
+#       - rule_id: NUM-REFOOT
+#         verdict: fail
+#         pages: [1]
+#       - rule_id: NUM-REFOOT
+#         verdict: pass
+#         pages: [2, 3]
 
 cases:
   - id: number_split_formatting
@@ -69,14 +81,15 @@ cases:
         verdict: pass
       - rule_id: NUM-CROSSFOOT
         verdict: pass
-  - id: text_underline_pass
-    description: "Tests that statement totals and subtotals are correctly underlined -single or double-. PASS scenario."
-    document: tests/fixtures/documents/underline_test_scenarios_pass.pdf
+  - id: text_underline_validation
+    description: "Tests that statement totals and subtotals are correctly underlined -single or double-"
+    document: tests/fixtures/documents/underline_test_scenarios.pdf
     rules:
       - FMT-DOUBLE-UNDERLINE
-  - id: text_underline_fail
-    description: "Tests that statement totals and subtotals are correctly underlined -single or double-. FAIL scenario."
-    document: tests/fixtures/documents/underline_test_scenarios_fail.pdf
-    rules:
-      - FMT-DOUBLE-UNDERLINE
-
+    expected:
+      - rule_id: FMT-DOUBLE-UNDERLINE
+        verdict: pass
+        pages: [1, 7, 9, 11]
+      - rule_id: FMT-DOUBLE-UNDERLINE
+        verdict: fail
+        pages: [2, 3, 4, 5, 6, 8, 10, 12]
