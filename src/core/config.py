@@ -35,11 +35,16 @@ class ReportConfig(BaseModel):
     include_thumbnails: bool = False
 
 
+class PipelineConfig(BaseModel):
+    concurrent_requests: int = 2
+
+
 class AppYaml(BaseModel):
     app: dict = {"project_name": "petra-vision"}
     pdf: PdfConfig = PdfConfig()
     vision: VisionConfig = VisionConfig()
     report: ReportConfig = ReportConfig()
+    pipeline: PipelineConfig = PipelineConfig()
 
 
 class Settings(BaseSettings):

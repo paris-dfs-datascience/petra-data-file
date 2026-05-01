@@ -5,18 +5,20 @@ import logging
 import mimetypes
 import shutil
 import tempfile
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import timedelta
 from pathlib import Path
 
 from src.core.config import AppYaml, Settings
-
-logger = logging.getLogger("petra.pipeline.vision")
 from src.core.prompting import load_prompt
 from src.pipeline.page_classifier import rule_applies_to_page
 from src.pipeline.pdf_renderer import PdfRenderer
 from src.providers.vision.factory import build_vision_provider
+
+logger = logging.getLogger("petra.pipeline.vision")
 
 
 VISION_PROMPT_PATH = "config/vision_analysis_system_prompt.md"
@@ -163,10 +165,7 @@ class VisionRuleAnalyzer:
         except ValueError as exc:
             return {
                 "rule_results": {
-                    rule.get("id", ""): _build_skipped_result(
-                        rule,
-                        str(exc),
-                    )
+                    rule.get("id", ""): _build_skipped_result(rule, str(exc))
                     for rule in vision_rules
                 },
                 "page_results": [],
@@ -188,91 +187,99 @@ class VisionRuleAnalyzer:
 
         results: dict[str, dict] = {}
         page_results: list[dict] = []
+        per_rule_page_results: dict[str, list[dict]] = {rule.get("id", ""): [] for rule in vision_rules}
+        lock = threading.Lock()
+        render_dir = Path(page_images[0]["image_path"]).parent
+
+        # Mark rules with no applicable pages upfront; collect work items for the rest.
+        applicable_pairs: list[tuple[dict, dict]] = []
+        for rule in vision_rules:
+            rule_id = rule.get("id", "")
+            matching = [
+                pi for pi in page_images
+                if rule_applies_to_page(rule, page_types_by_number.get(int(pi.get("page", 0) or 0)) or [])
+            ]
+            if not matching:
+                results[rule_id] = _build_not_applicable_rule_result(rule, "No pages matched this rule's section.")
+            else:
+                for pi in matching:
+                    applicable_pairs.append((rule, pi))
+
+        def _call(rule: dict, page_image: dict) -> dict | None:
+            if is_cancelled and is_cancelled():
+                return None
+            rule_id = rule.get("id", "")
+            page_number = int(page_image.get("page", 0) or 0)
+            page_image_for_rule = page_image
+            if rule_id == "FMT-DOUBLE-UNDERLINE":
+                hints = self.renderer.extract_double_underline_hints(pdf_path, page_number - 1)
+                page_image_for_rule = {**page_image, "double_underline_hints": hints}
+            try:
+                _t0 = time.perf_counter()
+                logger.info("LLM call start: type=vision rule=%s page=%d", rule_id, page_number)
+                raw_result = provider.evaluate_rule(page_image=page_image_for_rule, rule=rule, system_prompt=self.system_prompt)
+                logger.info("LLM call done: type=vision rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
+                return {
+                    "page": page_number,
+                    "rule_id": raw_result.get("rule_id", rule_id),
+                    "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
+                    "analysis_type": "vision",
+                    "execution_status": "completed",
+                    "verdict": raw_result.get("verdict", "needs_review"),
+                    "summary": raw_result.get("summary", ""),
+                    "reasoning": raw_result.get("reasoning", ""),
+                    "findings": raw_result.get("findings", []),
+                    "citations": [
+                        {
+                            "page": int(item.get("page", page_number) or page_number),
+                            "evidence": item.get("evidence", ""),
+                        }
+                        for item in raw_result.get("citations", [])
+                        if int(item.get("page", page_number) or page_number) == page_number
+                    ],
+                    "notes": [f"Confidence: {raw_result.get('confidence', 'unknown')}"],
+                }
+            except Exception as exc:
+                return {
+                    "page": page_number,
+                    "rule_id": rule_id,
+                    "rule_name": rule.get("name", rule_id),
+                    "analysis_type": "vision",
+                    "execution_status": "error",
+                    "verdict": "needs_review",
+                    "summary": "Vision analysis failed.",
+                    "reasoning": f"Vision analysis failed: {exc}",
+                    "findings": [],
+                    "citations": [],
+                    "notes": [],
+                }
 
         try:
+            with ThreadPoolExecutor(max_workers=self.app_config.pipeline.concurrent_requests) as executor:
+                future_to_rule = {executor.submit(_call, rule, pi): rule for rule, pi in applicable_pairs}
+                for future in as_completed(future_to_rule):
+                    if is_cancelled and is_cancelled():
+                        for f in future_to_rule:
+                            f.cancel()
+                        break
+                    rule = future_to_rule[future]
+                    rule_id = rule.get("id", "")
+                    page_result = future.result()
+                    if page_result is None:
+                        continue
+                    with lock:
+                        per_rule_page_results[rule_id].append(page_result)
+                        page_results.append(page_result)
+                        results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results[rule_id])
+                        if on_page_result:
+                            on_page_result(page_result, dict(results), list(page_results))
+
+            # Any rule that had applicable pages but nothing collected (fully cancelled)
             for rule in vision_rules:
                 rule_id = rule.get("id", "")
-                per_rule_page_results: list[dict] = []
-                evaluated_any_page = False
-                for page_image in page_images:
-                    if is_cancelled and is_cancelled():
-                        results[rule_id] = (
-                            self._aggregate_rule_results(rule, per_rule_page_results)
-                            if evaluated_any_page
-                            else _build_not_applicable_rule_result(
-                                rule,
-                                "No pages matched this rule's section before cancellation.",
-                            )
-                        )
-                        return {"rule_results": results, "page_results": page_results}
-
-                    page_number = int(page_image.get("page", 0) or 0)
-                    if not rule_applies_to_page(rule, page_types_by_number.get(page_number) or []):
-                        continue
-                    evaluated_any_page = True
-                    page_image_for_rule = page_image
-                    if rule_id == "FMT-DOUBLE-UNDERLINE":
-                        hints = self.renderer.extract_double_underline_hints(pdf_path, page_number - 1)
-                        page_image_for_rule = {**page_image, "double_underline_hints": hints}
-                    try:
-                        _t0 = time.perf_counter()
-                        logger.info("LLM call start: type=vision rule=%s page=%d", rule_id, page_number)
-                        raw_result = provider.evaluate_rule(page_image=page_image_for_rule, rule=rule, system_prompt=self.system_prompt)
-                        logger.info("LLM call done: type=vision rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
-                        citations = [
-                            {
-                                "page": int(item.get("page", page_number) or page_number),
-                                "evidence": item.get("evidence", ""),
-                            }
-                            for item in raw_result.get("citations", [])
-                            if int(item.get("page", page_number) or page_number) == page_number
-                        ]
-                        page_result = {
-                            "page": page_number,
-                            "rule_id": raw_result.get("rule_id", rule_id),
-                            "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
-                            "analysis_type": "vision",
-                            "execution_status": "completed",
-                            "verdict": raw_result.get("verdict", "needs_review"),
-                            "summary": raw_result.get("summary", ""),
-                            "reasoning": raw_result.get("reasoning", ""),
-                            "findings": raw_result.get("findings", []),
-                            "citations": citations,
-                            "notes": [
-                                f"Confidence: {raw_result.get('confidence', 'unknown')}",
-                            ],
-                        }
-                    except Exception as exc:
-                        page_result = {
-                            "page": page_number,
-                            "rule_id": rule_id,
-                            "rule_name": rule.get("name", rule_id),
-                            "analysis_type": "vision",
-                            "execution_status": "error",
-                            "verdict": "needs_review",
-                            "summary": "Vision analysis failed.",
-                            "reasoning": f"Vision analysis failed: {exc}",
-                            "findings": [],
-                            "citations": [],
-                            "notes": [],
-                        }
-
-                    per_rule_page_results.append(page_result)
-                    page_results.append(page_result)
-                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
-                    if on_page_result:
-                        on_page_result(page_result, dict(results), list(page_results))
-
-                if evaluated_any_page:
-                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results)
-                else:
-                    results[rule_id] = _build_not_applicable_rule_result(
-                        rule,
-                        "No pages matched this rule's section.",
-                    )
-
-            return {"rule_results": results, "page_results": page_results}
+                if rule_id not in results:
+                    results[rule_id] = self._aggregate_rule_results(rule, per_rule_page_results[rule_id])
         finally:
-            render_dir = Path(page_images[0]["image_path"]).parent if page_images else None
-            if render_dir is not None:
-                shutil.rmtree(render_dir, ignore_errors=True)
+            shutil.rmtree(render_dir, ignore_errors=True)
+
+        return {"rule_results": results, "page_results": page_results}

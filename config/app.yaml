@@ -37,3 +37,6 @@ vision:
 
 report:
   include_thumbnails: false
+
+pipeline:
+  concurrent_requests: 2
