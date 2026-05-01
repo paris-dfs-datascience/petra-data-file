@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 from collections.abc import Callable
+from datetime import timedelta
 
 from src.core.config import Settings
 from src.core.prompting import load_prompt
+
+logger = logging.getLogger("petra.pipeline.text")
 from src.pipeline.page_classifier import rule_applies_to_page
 from src.providers.text.factory import build_text_provider
 
@@ -252,7 +257,10 @@ class TextRuleAnalyzer:
                 page_number = int(page.get("page", 0))
                 try:
                     document_content = _serialize_page_content(page, rule)
+                    _t0 = time.perf_counter()
+                    logger.info("LLM call start: type=text rule=%s page=%d", rule_id, page_number)
                     raw_result = provider.evaluate_rule(document_content=document_content, rule=rule, system_prompt=self.system_prompt)
+                    logger.info("LLM call done: type=text rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
                     citations = raw_result.get("citations", [])
                     normalized_citations = [
                         {
