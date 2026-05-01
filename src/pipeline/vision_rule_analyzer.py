@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import base64
+import logging
 import mimetypes
 import shutil
 import tempfile
+import time
 from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 
 from src.core.config import AppYaml, Settings
+
+logger = logging.getLogger("petra.pipeline.vision")
 from src.core.prompting import load_prompt
 from src.pipeline.page_classifier import rule_applies_to_page
 from src.pipeline.pdf_renderer import PdfRenderer
@@ -210,7 +215,10 @@ class VisionRuleAnalyzer:
                         hints = self.renderer.extract_double_underline_hints(pdf_path, page_number - 1)
                         page_image_for_rule = {**page_image, "double_underline_hints": hints}
                     try:
+                        _t0 = time.perf_counter()
+                        logger.info("LLM call start: type=vision rule=%s page=%d", rule_id, page_number)
                         raw_result = provider.evaluate_rule(page_image=page_image_for_rule, rule=rule, system_prompt=self.system_prompt)
+                        logger.info("LLM call done: type=vision rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
                         citations = [
                             {
                                 "page": int(item.get("page", page_number) or page_number),

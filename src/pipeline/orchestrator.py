@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import logging
 import time
+from datetime import timedelta
 from pathlib import Path
+
+logger = logging.getLogger("petra.pipeline")
 
 from src.core.config import AppYaml, Settings
 from src.pipeline.pdf_extractor import PdfExtractor
@@ -105,9 +109,15 @@ class ValidationPipeline:
         rules: list[dict] | None = None,
         source_filename: str | None = None,
     ) -> dict:
+        t0 = time.perf_counter()
         doc_id = Path(pdf_path).stem + f"_{_timestamp_id()}"
-        pages = self.extractor.extract(pdf_path=pdf_path)
         selected_rules = rules or []
+        logger.info(
+            "Pipeline start: file=%s rules=%d",
+            source_filename or Path(pdf_path).name,
+            len(selected_rules),
+        )
+        pages = self.extractor.extract(pdf_path=pdf_path)
         text_analysis_results = self.text_rule_analyzer.analyze(pages=pages, rules=selected_rules)
         text_rule_results = text_analysis_results.get("rule_results", {})
         text_page_results = text_analysis_results.get("page_results", [])
@@ -123,6 +133,13 @@ class ValidationPipeline:
             selected_rules=selected_rules,
             text_rule_results=text_rule_results,
             vision_rule_results=vision_rule_results,
+        )
+        logger.info(
+            "Pipeline complete: file=%s pages=%d rules=%d elapsed=%s",
+            source_filename or Path(pdf_path).name,
+            len(pages),
+            len(selected_rules),
+            timedelta(seconds=time.perf_counter() - t0),
         )
         return build_document_result(
             document_id=doc_id,

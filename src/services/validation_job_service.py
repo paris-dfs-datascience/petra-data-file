@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("petra.pipeline")
 
 from src.pipeline.result_builder import build_document_result
 from src.services.validation_service import ValidationService
@@ -71,8 +76,14 @@ class ValidationJobService:
             return
 
         try:
+            t0 = time.perf_counter()
             service = ValidationService()
             selected_rules = service.rule_service.load_rules(rules_json_str=rules_json_str)
+            logger.info(
+                "Pipeline start: file=%s rules=%d",
+                source_filename or Path(pdf_path).name,
+                len(selected_rules),
+            )
             text_rules = [rule for rule in selected_rules if rule.get("analysis_type", "text") == "text"]
             total_steps = max(1, len(text_rules))
 
@@ -191,6 +202,13 @@ class ValidationJobService:
             visual_page_results = vision_analysis_results.get("page_results", [])
             final_status = "cancelled" if job.cancel_requested else "completed"
             final_message = "Analysis stopped" if job.cancel_requested else "Analysis complete"
+            logger.info(
+                "Pipeline complete: file=%s pages=%d rules=%d elapsed=%s",
+                source_filename or Path(pdf_path).name,
+                len(pages),
+                len(selected_rules),
+                timedelta(seconds=time.perf_counter() - t0),
+            )
 
             with job.lock:
                 job.status = final_status
