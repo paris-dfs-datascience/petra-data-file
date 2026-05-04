@@ -66,8 +66,7 @@ class ClaudeTextAnalysisProvider(TextAnalysisProvider):
                 "role": "user",
                 "content": (
                     "Evaluate the following text/content rule against the extracted PDF content.\n"
-                    "Be concise.\n\n"
-                    f"{compact_rule_payload(rule, fallback_analysis_type='text')}\n"
+                    f"{compact_rule_payload(rule)}\n"
                     "EXTRACTED DOCUMENT CONTENT:\n"
                     f"{document_content}\n"
                 ),
