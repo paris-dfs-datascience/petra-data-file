@@ -106,8 +106,7 @@ class ClaudeVisionProvider(VisionProvider):
                         "type": "text",
                         "text": (
                             "Evaluate the following vision rule against the rendered PDF page image.\n"
-                            "Be concise.\n\n"
-                            f"{compact_rule_payload(rule, fallback_analysis_type='vision')}\n"
+                            f"{compact_rule_payload(rule)}\n"
                             f"{build_vector_data_text(page_image)}"
                             "RENDERED PDF PAGE:\n"
                             f"PDF page {page_number}\n"
