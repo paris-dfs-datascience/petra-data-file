@@ -4,55 +4,55 @@
       "id": "FMT-HEADINGS",
       "name": "Heading Alignment and Integrity",
       "analysis_type": "text",
-      "query": "Title lines and subtitle lines in the page heading area outside tables, using extracted text plus any available positional metadata.",
-      "description": "Determine whether title/subtitle lines in the page heading area appear complete and aligned consistently with the other related heading lines. The intended pattern may be centered, left-aligned, or right-aligned. Treat natural PDF line wrapping of long titles or subtitles as acceptable, including cases where a long name or phrase continues on the next line in a way that may sound awkward when flattened into plain text. Express feedback in plain language rather than raw coordinates or measurements.",
+      "query": "Examine title lines and subtitle lines in the page heading area outside tables, using extracted text plus any available positional metadata. Determine whether they appear complete and aligned consistently with the other related heading lines. The intended pattern may be centered, left-aligned, or right-aligned. Treat natural PDF line wrapping of long titles or subtitles as acceptable, including cases where a long name or phrase continues on the next line in a way that may sound awkward when flattened into plain text. Express feedback in plain language rather than raw coordinates or measurements.",
+      "description": "Checks heading completeness and consistent alignment across title/subtitle lines.",
       "acceptance_criteria": "Title lines and subtitle lines in the page heading area should be complete, readable, and aligned consistently with their peer heading lines based on extracted text and any available line-position metadata. Do not flag a long title or subtitle merely because it continues onto the next line. Read adjacent heading lines together as a combined heading, and allow normal PDF wrapping even when the flattened text sounds awkward, repetitive, or stylistically incomplete. Do not fail this rule for wording preference, naming style, or because you think a wrapped entity name should have been repeated differently. Only report a content-integrity issue when there is clear evidence of visible truncation, cut-off text, corrupted extraction, or a genuinely malformed heading after considering natural line continuation. Only describe a line as off-center when the dominant heading pattern is actually centered. Report all distinct issues for this rule on the page. Use needs_review when the extraction or layout metadata is insufficient or when the available positional metadata does not cover the candidate line.",
-      "severity": "High"
+      "severity": "major"
     },
     {
       "id": "RND-GLOBAL",
       "name": "Whole-Dollar Values Check",
       "analysis_type": "text",
-      "query": "All tables, All charts, ignore footnotes",
-      "description": "Confirm all amounts shown inside tables or chart-like numeric blocks are rounded to whole dollars. No cents or decimal dollar values should appear. Ignore percentages. A single page may contain multiple separate tables.",
+      "query": "Confirm all amounts shown inside tables or chart-like numeric blocks are rounded to whole dollars. No cents or decimal dollar values should appear. Ignore percentages and footnotes. A single page may contain multiple separate tables.",
+      "description": "All dollar amounts in tables and charts must be whole dollars. No cents, no decimal values. Ignore percentages and footnotes.",
       "acceptance_criteria": "No decimal numbers are used on dollar amounts or dollar figures presented in tables or chart-like numeric sections. These must be whole numbers. Ignore percentages. Report all distinct issues for this rule on the page.",
-      "severity": "High"
+      "severity": "major"
     },
     {
       "id": "FMT-VISUAL-INTEGRITY",
       "name": "Visual Layout Integrity",
       "analysis_type": "vision",
-      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment.",
-      "description": "All visually relevant page elements, including headings, tables, columns, logos, and other layout components, should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
+      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment. All visually relevant page elements should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
+      "description": "Visual completeness and layout integrity of all page elements: headings, tables, columns, logos.",
       "acceptance_criteria": "The page layout is visually clean and consistent. Headings, tables, columns, and logos are aligned and visually complete. No text is cut off, misprinted, deformed, or obviously misaligned. Report all distinct issues for this rule on the page.",
-      "severity": "High"
+      "severity": "major"
     },
     {
       "id": "FMT-DOLLAR-SIGNS",
       "name": "Dollar Sign Placement",
       "analysis_type": "text",
-      "query": "All tables. Identify the first and last monetary row in each table. Ignore headers and interior rows.",
-      "description": "Evaluate each relevant table separately. First determine the first monetary row and the last monetary row in that table after ignoring headers, blank rows, percentage-only rows, and other non-monetary rows. Only those two boundary rows are required to show a dollar sign ($). Interior rows may include or omit dollar signs and should not drive the verdict.",
+      "query": "Evaluate each relevant table separately. Determine the first monetary row and the last monetary row in each table, ignoring headers, blank rows, percentage-only rows, and other non-monetary rows. Only those two boundary rows are required to show a dollar sign ($). Interior rows may include or omit dollar signs and should not drive the verdict.",
+      "description": "Dollar signs are required only on the first and last monetary row of each table; interior rows are not checked.",
       "acceptance_criteria": "For each relevant table, the first monetary row and the last monetary row should contain a dollar sign. Do not fail the rule because an interior or penultimate row lacks a dollar sign. If the extraction makes the table boundary or the monetary boundary rows ambiguous, use needs_review. Report all distinct issues for this rule on the page.",
-      "severity": "High"
+      "severity": "major"
     },
     {
       "id": "MATH-TABLE-CHECKS",
       "name": "Arithmetic Consistency Check",
       "analysis_type": "text",
-      "query": "Review numeric rows, subtotals, totals, and rollforwards in tables or structured numeric text.",
-      "description": "Check whether numeric relationships in tables or structured numeric sections appear mathematically correct. Verify additions, subtractions, subtotals, totals, and similar calculations when the necessary inputs are present in the extracted page text.",
+      "query": "Check whether numeric relationships in tables or structured numeric sections are mathematically correct. Verify additions, subtractions, subtotals, totals, and similar calculations when the necessary inputs are present in the extracted page text.",
+      "description": "Validates that numeric totals and subtotals in tables reconcile correctly from their inputs.",
       "acceptance_criteria": "If the extracted text provides enough numeric evidence, totals and subtotals should reconcile correctly. Any apparent arithmetic mismatch should be reported with the relevant figures and page citation. If the evidence is incomplete, report needs_review rather than guessing. Report all distinct issues for this rule on the page.",
-      "severity": "High"
+      "severity": "major"
     },
     {
       "id": "LANG-EN-GRAMMAR",
       "name": "English Grammar and Spelling",
       "analysis_type": "text",
-      "query": "Review the full page text for grammar, spelling, and wording quality. Report multiple distinct issues when present.",
-      "description": "Check whether the English wording on the page is grammatically correct, clearly written, and free of obvious spelling mistakes, malformed words, broken phrasing, incorrect singular/plural usage, or possessive/wording problems. Review the full page text, not just the first issue found. Ignore numeric formatting issues unless they directly affect the wording.",
+      "query": "Review the full page text for grammar, spelling, and wording quality. Check for obvious spelling mistakes, malformed words, broken phrasing, incorrect singular/plural usage, and possessive/wording problems. Review all issues on the page, not just the first one found. Ignore numeric formatting issues unless they directly affect the wording.",
+      "description": "Checks narrative English text for grammatical correctness, spelling, and clarity across the full page.",
       "acceptance_criteria": "Narrative English text should be grammatically correct, coherent, and free of obvious spelling or wording problems. If multiple distinct issues exist on the page, report them separately. Each finding should identify the problematic phrase and state the correct or expected wording, with page citation. Report all distinct issues for this rule on the page.",
-      "severity": "High"
+      "severity": "major"
     }
   ]
 }

@@ -73,10 +73,7 @@ def build_vector_data_text(page_image: dict) -> str:
 
 def compact_rule_payload(rule: dict) -> str:
     return (
-        # TODO: collapse the information below to a single 'RULE' field. Keep 'ACCEPTANCE CRITERIA'
-        f"RULE ID: {rule.get('id', '')}\n"
         f"RULE NAME: {rule.get('name', '')}\n"
         f"RULE QUERY: {rule.get('query', '')}\n"
-        f"RULE DESCRIPTION: {rule.get('description', '')}\n"
         f"RULE ACCEPTANCE CRITERIA: {rule.get('acceptance_criteria', '')}\n"
     )

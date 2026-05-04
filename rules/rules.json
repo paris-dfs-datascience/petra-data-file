@@ -4,8 +4,8 @@
       "id": "FMT-HEADINGS",
       "name": "Heading Alignment and Integrity",
       "analysis_type": "text",
-      "query": "Title lines and subtitle lines in the page heading area outside tables, using extracted text plus any available positional metadata.",
-      "description": "Determine whether title/subtitle lines in the page heading area appear complete and aligned consistently with the other related heading lines. The intended pattern may be centered, left-aligned, or right-aligned. Treat natural PDF line wrapping of long titles or subtitles as acceptable, including cases where a long name or phrase continues on the next line in a way that may sound awkward when flattened into plain text. Express feedback in plain language rather than raw coordinates or measurements.",
+      "query": "Examine title lines and subtitle lines in the page heading area outside tables, using extracted text plus any available positional metadata. Determine whether they appear complete and aligned consistently with the other related heading lines. The intended pattern may be centered, left-aligned, or right-aligned. Treat natural PDF line wrapping of long titles or subtitles as acceptable, including cases where a long name or phrase continues on the next line in a way that may sound awkward when flattened into plain text. Express feedback in plain language rather than raw coordinates or measurements.",
+      "description": "Checks heading completeness and consistent alignment across title/subtitle lines.",
       "acceptance_criteria": "Title lines and subtitle lines in the page heading area should be complete, readable, and aligned consistently with their peer heading lines based on extracted text and any available line-position metadata. Do not flag a long title or subtitle merely because it continues onto the next line. Read adjacent heading lines together as a combined heading, and allow normal PDF wrapping even when the flattened text sounds awkward, repetitive, or stylistically incomplete. Do not fail this rule for wording preference, naming style, or because you think a wrapped entity name should have been repeated differently. Only report a content-integrity issue when there is clear evidence of visible truncation, cut-off text, corrupted extraction, or a genuinely malformed heading after considering natural line continuation. Only describe a line as off-center when the dominant heading pattern is actually centered. Report all distinct issues for this rule on the page. Use needs_review when the extraction or layout metadata is insufficient or when the available positional metadata does not cover the candidate line.",
       "severity": "major"
     },
@@ -13,8 +13,8 @@
       "id": "RND-GLOBAL",
       "name": "Whole-Dollar Values Check",
       "analysis_type": "text",
-      "query": "All tables, All charts, ignore footnotes",
-      "description": "Confirm all amounts shown inside tables or chart-like numeric blocks are rounded to whole dollars. No cents or decimal dollar values should appear. Ignore percentages. A single page may contain multiple separate tables.",
+      "query": "Confirm all amounts shown inside tables or chart-like numeric blocks are rounded to whole dollars. No cents or decimal dollar values should appear. Ignore percentages and footnotes. A single page may contain multiple separate tables.",
+      "description": "All dollar amounts in tables and charts must be whole dollars. No cents, no decimal values. Ignore percentages and footnotes.",
       "acceptance_criteria": "No decimal numbers are used on dollar amounts or dollar figures presented in tables or chart-like numeric sections. These must be whole numbers. Ignore percentages. Report all distinct issues for this rule on the page.",
       "severity": "major"
     },
@@ -22,8 +22,8 @@
       "id": "FMT-DOLLAR-SIGNS",
       "name": "Dollar Sign Placement",
       "analysis_type": "text",
-      "query": "All tables. Identify the first and last monetary row in each table. Ignore headers and interior rows.",
-      "description": "Evaluate each relevant table separately. First determine the first monetary row and the last monetary row in that table after ignoring headers, blank rows, percentage-only rows, and other non-monetary rows. Only those two boundary rows are required to show a dollar sign ($). Interior rows may include or omit dollar signs and should not drive the verdict.",
+      "query": "Evaluate each relevant table separately. Determine the first monetary row and the last monetary row in each table, ignoring headers, blank rows, percentage-only rows, and other non-monetary rows. Only those two boundary rows are required to show a dollar sign ($). Interior rows may include or omit dollar signs and should not drive the verdict.",
+      "description": "Dollar signs are required only on the first and last monetary row of each table; interior rows are not checked.",
       "acceptance_criteria": "For each relevant table, the first monetary row and the last monetary row should contain a dollar sign. Do not fail the rule because an interior or penultimate row lacks a dollar sign. If the extraction makes the table boundary or the monetary boundary rows ambiguous, use needs_review. Report all distinct issues for this rule on the page.",
       "severity": "major"
     },
@@ -31,8 +31,8 @@
       "id": "FMT-VISUAL-INTEGRITY",
       "name": "Visual Layout Integrity",
       "analysis_type": "vision",
-      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment.",
-      "description": "All visually relevant page elements, including headings, tables, columns, logos, and other layout components, should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
+      "query": "Review the full page layout including headings, tables, columns, logos, and overall visual alignment. All visually relevant page elements should be visually complete, aligned, uniformly rendered, and free of cut-off words, misprints, errant spacing, deformation, or column misalignment. Use the red center guideline as a supporting visual cue when helpful.",
+      "description": "Visual completeness and layout integrity of all page elements: headings, tables, columns, logos.",
       "acceptance_criteria": "The page layout is visually clean and consistent. Headings, tables, columns, and logos are aligned and visually complete. No text is cut off, misprinted, deformed, or obviously misaligned. Report all distinct issues for this rule on the page.",
       "severity": "major"
     },
@@ -46,14 +46,7 @@
       "severity": "major",
       "group": "numerical",
       "section": "All Statements",
-      "bypassable": false,
-      "tolerance": 0.0,
-      "check_method": null,
-      "steps": "Recompute vertical & horizontal totals.",
-      "pass_criteria": "Totals match exactly (tolerance 0).",
-      "fail_criteria": "Any mismatch ≥ $1.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Prevents math errors."
+      "bypassable": false
     },
     {
       "id": "NUM-CROSSFOOT",
@@ -65,14 +58,7 @@
       "severity": "critical",
       "group": "numerical",
       "section": "All Statements",
-      "bypassable": false,
-      "tolerance": 0.0,
-      "check_method": null,
-      "steps": "Recompute subtotals roll to totals.",
-      "pass_criteria": "All cross-foot relationships hold.",
-      "fail_criteria": "Any mismatch ≥ $1.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Prevents hidden subtotal mistakes."
+      "bypassable": false
     },
     {
       "id": "SIG-GLOBAL",
@@ -84,14 +70,7 @@
       "severity": "minor",
       "group": "rounding_signage_formatting",
       "section": "All Statements",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check signs vs. policy (losses/depr’n negative).",
-      "pass_criteria": "No mixed signage for the same class of items within a statement; assets and totals not negative; losses/expenses carry negative sign (paren or minus).",
-      "fail_criteria": "Mixed signage in the same liabilities or expense column; negative assets or totals.",
-      "action_if_fail": "Flag any illogical sign; REJECTED if material.",
-      "rationale": "Prevents misleading sign presentation."
+      "bypassable": false
     },
     {
       "id": "FMT-GLOBAL",
@@ -103,33 +82,19 @@
       "severity": "major",
       "group": "rounding_signage_formatting",
       "section": "All Statements",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check global formatting and header alignment.",
-      "pass_criteria": "Fonts and capitalization are internally consistent across the page.",
-      "fail_criteria": "Mixed fonts or inconsistent capitalization for the same class of content.",
-      "action_if_fail": "Flag and require correction.",
-      "rationale": "Ensures professional presentation."
+      "bypassable": false
     },
     {
       "id": "FMT-DOUBLE-UNDERLINE",
       "name": "Double Underline",
       "analysis_type": "vision",
-      "query": "Final statement totals are double-underlined. Look for TWO distinct parallel horizontal lines beneath each total row — not a single line, not a thick rule, but two separate lines with a visible gap between them.\n\nPass criteria: You can clearly identify two separate parallel lines beneath the total figure.\n\nFail criteria: You can clearly and confidently see only one underline line with no second line present — and you are certain it is not a thick double underline rendered at close spacing.\n\nAmbiguous cases: In rasterized PDFs, double underlines may appear as a single thick line when the two lines are printed close together. If you are uncertain whether you see one thick line or two close lines, return `needs_review` — do not default to `fail`.\n\nIf vector metadata is provided in the prompt (labeled VECTOR DATA), treat it as authoritative and do not override it with visual judgment alone.",
+      "query": "Final section totals are double-underlined. A \"final section total\" is the last and most comprehensive figure in a discrete section or statement. A page may contain multiple final section totals if it contains multiple sections, each of which should be double-underlined independently. A \"section\" is a group of line items introduced by a bold heading; subsections within it may have non-bold headings and their totals are intermediate, not final.\n\nIntermediate subtotals are NOT required to be double-underlined and should be ignored by this rule.\n\nHow to identify a final section total vs. an intermediate subtotal:\n- A final section total is not further added into another subtotal on the same page.\n- An intermediate subtotal feeds into a higher-level total that also appears on the same page.\n\nLook for TWO distinct parallel horizontal lines beneath each final section total row — not a single line, not a thick rule, but two separate lines with a visible gap between them.\n\nPass criteria: You can clearly identify two separate parallel lines beneath the final section total figure.\n\nFail criteria: You can clearly and confidently see only one underline line with no second line present — and you are certain it is not a thick double underline rendered at close spacing — on a row that qualifies as a final section total.\n\nAmbiguous cases: In rasterized PDFs, double underlines may appear as a single thick line when the two lines are printed close together. If you are uncertain whether you see one thick line or two close lines, return `needs_review` — do not default to `fail`.\n\nIf vector metadata is provided in the prompt (labeled VECTOR DATA), treat it as authoritative and do not override it with visual judgment alone.",
       "description": "Final statement totals are double-underlined.",
       "acceptance_criteria": "Two distinct parallel lines clearly visible on each total row, OR `needs_review` when visual ambiguity prevents a confident determination.",
       "severity": "major",
       "group": "rounding_signage_formatting",
       "section": "All Statements",
-      "bypassable": true,
-      "tolerance": null,
-      "check_method": "visual_or_hint",
-      "steps": "prefer_vector_pdf_styling: true↵detect_bottom_border_style_on_total_rows: \"double\"↵if_styling_unavailable: look_for_ascii_rules_or_layout_hints: [\"==\",\"double rule\",\"double underline annotation\"]; mark_status: \"UNVERIFIABLE\"",
-      "pass_criteria": "Double underline detected on total rows (styling or reliable hint).",
-      "fail_criteria": "Single/no underline where double is expected.",
-      "action_if_fail": "Flag; if UNVERIFIABLE due to scan, BYPASS with note.",
-      "rationale": "Signals finality of totals and matches house style."
+      "bypassable": true
     },
     {
       "id": "DATE-INTEGRITY-FULL",
@@ -141,14 +106,7 @@
       "severity": "critical",
       "group": "dates",
       "section": "All",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "extract_dates: [\"Issue Date\",\"Approval Date\",\"Signature Date\",\"Period End\",\"Wire Date\"]↵normalize_formats: [\"MMMM D, YYYY\",\"YYYY-MM-DD\",\"M/D/YYYY\"]↵validate_calendar_reality: true↵do_not_fail_on_missing_optional_fields: true↵optional_fields: [\"Issue Date\",\"Approval Date\",\"Signature Date\",\"Wire Date\"]",
-      "pass_criteria": "All present dates are valid; optional dates may be absent without causing a fail.",
-      "fail_criteria": "Any PRESENT date is invalid (e.g., impossible/typo).",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Don’t force Issue/Approval onto the cover; still enforce validity when they exist."
+      "bypassable": false
     },
     {
       "id": "DATE-LOGIC-ORDER",
@@ -160,14 +118,7 @@
       "severity": "critical",
       "group": "dates",
       "section": "All",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "extract_dates: [\"Issue Date\",\"Approval Date\",\"Signature Date\",\"Period End\",\"Wire Date\"]↵normalize_formats: [\"MMMM D, YYYY\",\"YYYY-MM-DD\",\"M/D/YYYY\"]↵evaluate_only_if_both_present: true↵pair_order_rules: [\"Issue Date >= Period End\",\"Wire Date >= Issue Date\",\"Signature Date >= Issue Date\"]",
-      "pass_criteria": "All evaluated pairs obey logical order; pairs with a missing member are skipped (no finding).",
-      "fail_criteria": "Any evaluated pair is out of order.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Do not force Issue/Approval when not disclosed."
+      "bypassable": false
     },
     {
       "id": "GRAM-SPELL",
@@ -179,33 +130,19 @@
       "severity": "major",
       "group": "spelling_grammar",
       "section": "Full Document",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": "text_lint",
-      "steps": "extract_text↵normalize_text↵spellcheck↵grammarcheck↵filter_findings↵whitelist.regex: [\"(?i)\\bunaudited\\b\"]",
-      "pass_criteria": "No unwhitelisted spelling/grammar findings.",
-      "fail_criteria": "≥1 unwhitelisted issue.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Protects professionalism and clarity. Avoid stylistic caps disputes on “Unaudited”."
+      "bypassable": false
     },
     {
       "id": "CVR-PERIOD-PHRASING",
       "name": "Cover Period Phrasing",
       "analysis_type": "text",
       "query": "This rule applies ONLY to the cover page. If this page is clearly not a cover page, return not_applicable.\n\nAccepted cover phrasings include: \"As of {date}\", \"For the Period Ended {date}\", \"As of and for the Period Ended {date}\", and \"For the Year Ended {date}\".\n\nPass criteria: Cover uses one of the allowed phrasings with a valid date.\n\nFail criteria: Phrasing does not match any of the allowed patterns, or the date is invalid.",
-      "description": "Accepted cover phrasings include: “As of {date}”, “For the Period Ended {date}”, and “As of and for the Period Ended {date}”.",
+      "description": "Accepted cover phrasings include: “As of {date}”, “For the Period Ended {date}”, “As of and for the Period Ended {date}”, and “For the Year Ended {date}”.",
       "acceptance_criteria": "Cover uses one of the allowed phrasings with a valid {date}.",
       "severity": "major",
       "group": "cover_page",
       "section": "Cover Page",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "normalize_case_punct: true↵allow_phrases: [\"As of {date}\",\"For the Period Ended {date}\",\"As of and for the Period Ended {date}\",\"For the Year Ended {date}\"]",
-      "pass_criteria": "Cover uses one of the allowed phrasings with a valid {date}.",
-      "fail_criteria": "Any other phrasing.",
-      "action_if_fail": "Phrasing outside the allowed set or invalid {date}.",
-      "rationale": "Standardizes cover presentation. Prevents false flags when the combined phrase is used."
+      "bypassable": false
     },
     {
       "id": "CVR-DATE-CHECK",
@@ -217,14 +154,7 @@
       "severity": "critical",
       "group": "cover_page",
       "section": "Cover Page",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "require_period_end_on_cover: true↵apply_rules: [\"DATE-INTEGRITY-FULL\"]↵scope: \"cover_only\"",
-      "pass_criteria": "Period End appears on the cover and is a valid date.",
-      "fail_criteria": "Period End missing/invalid on the cover.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Prevents false fails when cover omits Issue/Approval."
+      "bypassable": false
     },
     {
       "id": "BS-FMT",
@@ -236,33 +166,19 @@
       "severity": "major",
       "group": "balance_sheet",
       "section": "Balance Sheet",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check alignment/caps/header/$ placement.",
-      "pass_criteria": "Capitalization consistent; totals foot; indentation logical.",
-      "fail_criteria": "Capitalization inconsistencies; totals do not foot; indentation breaks hierarchy.",
-      "action_if_fail": "Flag.",
-      "rationale": "Assures readability and consistency."
+      "bypassable": false
     },
     {
       "id": "ARITH-ASSETS=LIABS+CAP",
       "name": "Balance Sheet Equation",
       "analysis_type": "text",
       "query": "This rule applies ONLY to the Balance Sheet. If this page is not a Balance Sheet, return not_applicable.\n\nTotal Assets must equal Total Liabilities plus Members'/Partners' Capital. Use the labeled final totals only (ignore subtotals). Look for rows labeled \"Total assets\" and \"Total liabilities and members' capital\" (or \"Total liabilities and partners' capital\"). Normalize number formats: remove \"$\", commas, treat parentheses as negative.\n\nPass criteria: Assets total = Liabilities + Capital total, tolerance 0.\n\nFail criteria: Mismatch >= $1.",
-      "description": "Total Assets must equal Total Liabilities plus Members’/Partners’ Capital, using the labeled final totals (ignore subtotals).",
+      "description": "Total Assets must equal Total Liabilities plus Members'/Partners' Capital, using the labeled final totals (ignore subtotals).",
       "acceptance_criteria": "Assets total = Liabilities+Capital total, tolerance 0.",
       "severity": "critical",
       "group": "balance_sheet",
       "section": "Balance Sheet",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "find_label_row: \"Total assets\"↵capture_assets_total_from_row: true↵find_label_row: \"Total liabilities and members’ capital|Total liabilities and partners’ capital\"↵capture_liab_equity_total_from_row: true↵prefer_double_underlined_rows_when_available: true↵normalize_number_formats: [\"$\",\"comma_sep\",\"paren_negatives\",\"en_dash\",\"minus\"]",
-      "pass_criteria": "Assets total = Liabilities+Capital total, tolerance 0.",
-      "fail_criteria": "Mismatch ≥ $1.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Prevents false fails by using final labeled totals only."
+      "bypassable": false
     },
     {
       "id": "SOI-FMT",
@@ -274,14 +190,7 @@
       "severity": "major",
       "group": "schedule_of_investments",
       "section": "Schedule of Investments",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check formatting; pluralization; totals.",
-      "pass_criteria": "Totals foot; pluralization correct; formatting consistent.",
-      "fail_criteria": "Totals off; wrong pluralization; formatting inconsistencies.",
-      "action_if_fail": "Flag.",
-      "rationale": "Clean layout and clarity."
+      "bypassable": false
     },
     {
       "id": "SOI-FOOTNOTE-XREF",
@@ -293,14 +202,7 @@
       "severity": "major",
       "group": "schedule_of_investments",
       "section": "Schedule of Investments",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Verify each x-ref points to correct note.",
-      "pass_criteria": "All markers have matching legend entries on the same page, and vice versa.",
-      "fail_criteria": "Any orphaned marker or orphaned legend entry.",
-      "action_if_fail": "Flag.",
-      "rationale": "Ensures traceability to notes."
+      "bypassable": false
     },
     {
       "id": "OPS-FMT",
@@ -312,14 +214,7 @@
       "severity": "major",
       "group": "statement_of_operations",
       "section": "Statement of Operations",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check formatting, signs, totals.",
-      "pass_criteria": "Totals foot; rounding correct; formatting consistent.",
-      "fail_criteria": "Totals do not foot; cents present; formatting inconsistencies.",
-      "action_if_fail": "Flag.",
-      "rationale": "Presentation and math consistency."
+      "bypassable": false
     },
     {
       "id": "SCF-SIGNAGE",
@@ -331,33 +226,19 @@
       "severity": "major",
       "group": "statement_of_cash_flows",
       "section": "Statement of Cash Flows",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "Check sign logic on inflows/outflows.",
-      "pass_criteria": "All signs are logically consistent with cash flow direction.",
-      "fail_criteria": "Any logical sign inversion without consistent convention.",
-      "action_if_fail": "Flag.",
-      "rationale": "Prevents sign confusion in cash flow."
+      "bypassable": false
     },
     {
       "id": "SCF-RECONCILE-CASH",
       "name": "Cash Reconciliation",
       "analysis_type": "text",
-      "query": "This rule applies ONLY to the Statement of Cash Flows. If this page is not a Statement of Cash Flows, return not_applicable.\n\nCheck that: beginning cash + net change in cash = ending cash. Look for labeled rows like \"Cash, beginning of period\", \"Net increase/decrease in cash\", and \"Cash, end of period\" (or similar variations). No disclosure of non-cash activity is required.\n\nPass criteria: The equation beginning + net change = ending holds exactly.\n\nFail criteria: Mismatch >= $1.",
+      "query": "This rule applies ONLY to the Statement of Cash Flows. If this page is not a Statement of Cash Flows, return not_applicable.\n\nCheck that: beginning cash + net change in cash = ending cash. Look for labeled rows like \"Cash, beginning of period\", \"Net increase/decrease in cash\", and \"Cash, end of period\" (or similar variations). No disclosure of non-cash activity is required.\n\nPass criteria: The equation 'beginning + net change = ending' holds exactly.\n\nFail criteria: Mismatch >= $1.",
       "description": "Net change + beginning = ending cash. No disclosure of non-cash activity required.",
       "acceptance_criteria": "Equation holds exactly.",
       "severity": "critical",
       "group": "statement_of_cash_flows",
       "section": "Statement of Cash Flows",
-      "bypassable": false,
-      "tolerance": null,
-      "check_method": null,
-      "steps": "capture_beginning_cash: true↵capture_net_change: true↵capture_ending_cash: true↵check_identity: beginning + net_change = ending",
-      "pass_criteria": "Equation holds exactly.",
-      "fail_criteria": "Mismatch ≥ $1.",
-      "action_if_fail": "REJECTED.",
-      "rationale": "Core internal CF reconciliation."
+      "bypassable": false
     }
   ]
 }
