@@ -17,13 +17,6 @@ class RuleSchema(BaseModel):
     section: Optional[str] = None
     bypassable: bool = False
     bypass: bool = False  # runtime: user opted to bypass this rule for this run
-    tolerance: Optional[float] = None
-    check_method: Optional[str] = None
-    steps: Optional[str] = None
-    pass_criteria: Optional[str] = None
-    fail_criteria: Optional[str] = None
-    action_if_fail: Optional[str] = None
-    rationale: Optional[str] = None
 
 
 class RulesResponse(BaseModel):
