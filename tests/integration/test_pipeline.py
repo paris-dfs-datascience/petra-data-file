@@ -71,6 +71,45 @@ def _reaggregate_verdict(page_results: list[dict], rule_id: str, pages: list[int
     return "needs_review"
 
 
+def _get_page_breakdown(
+    page_results: list[dict], rule_id: str, pages: list[int]
+) -> list[tuple[int, str, list[str]]]:
+    """Return sorted (page, verdict, findings) tuples for each page in the filter set."""
+    pages_set = set(pages)
+    found: dict[int, tuple[str, list[str]]] = {}
+    for r in page_results:
+        if r.get("rule_id") == rule_id and int(r.get("page", 0)) in pages_set:
+            page = int(r["page"])
+            if r.get("execution_status") == "completed":
+                found[page] = (r.get("verdict", "unknown"), r.get("findings", []))
+            elif page not in found:
+                found[page] = (f"not_completed ({r.get('execution_status', 'unknown')})", [])
+    for p in pages_set - found.keys():
+        found[p] = ("no_result", [])
+    return sorted((p, v, f) for p, (v, f) in found.items())
+
+
+def _pages_with_results(page_results: list[dict], rule_id: str) -> list[int]:
+    """Return all page numbers that have completed results for rule_id (outside any filter)."""
+    return sorted({
+        int(r.get("page", 0))
+        for r in page_results
+        if r.get("rule_id") == rule_id and r.get("execution_status") == "completed"
+    })
+
+
+def _diagnose_page_results(page_results: list[dict]) -> str:
+    """Summarise what rule IDs and pages are actually stored in the page results list."""
+    if not page_results:
+        return "empty (len=0)"
+    from collections import defaultdict
+    by_rule: dict[str, list[int]] = defaultdict(list)
+    for r in page_results:
+        by_rule[str(r.get("rule_id", "<missing>"))].append(int(r.get("page", 0)))
+    parts = [f"{rid}: pages {sorted(pages)}" for rid, pages in sorted(by_rule.items())]
+    return f"{len(page_results)} entries — " + "; ".join(parts)
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "case_id,rule_id,expected_verdict,expected_pages,pages_filter",
@@ -110,21 +149,50 @@ def test_rule_verdict(
     if pages_filter is not None:
         text_page_results = result.get("analysis", {}).get("text_page_results", [])
         visual_page_results = result.get("analysis", {}).get("visual_page_results", [])
-        actual_verdict = _reaggregate_verdict(
-            text_page_results + visual_page_results, rule_id, pages_filter
-        )
-        assert actual_verdict == expected_verdict, (
-            f"Case '{case_id}' / Rule '{rule_id}' / Pages {sorted(pages_filter)}: "
-            f"expected verdict '{expected_verdict}', got '{actual_verdict}'\n"
-            f"Findings: {actual.get('findings', [])}"
-        )
+        all_page_results = text_page_results + visual_page_results
+        actual_verdict = _reaggregate_verdict(all_page_results, rule_id, pages_filter)
+        if actual_verdict != expected_verdict:
+            breakdown = _get_page_breakdown(all_page_results, rule_id, pages_filter)
+            page_lines_parts = []
+            for p, v, findings in breakdown:
+                line = f"  page {p}: {v}"
+                for finding in findings:
+                    line += f"\n    - {finding}"
+                page_lines_parts.append(line)
+            page_lines = "\n".join(page_lines_parts)
+            all_no_result = all(v == "no_result" for _, v, _ in breakdown)
+            hint = ""
+            if all_no_result:
+                other = _pages_with_results(all_page_results, rule_id)
+                if other:
+                    hint = f"\n  Note: rule has completed results on pages {other} (none overlap this filter)"
+                else:
+                    text_diag = _diagnose_page_results(
+                        result.get("analysis", {}).get("text_page_results", [])
+                    )
+                    vis_diag = _diagnose_page_results(
+                        result.get("analysis", {}).get("visual_page_results", [])
+                    )
+                    hint = (
+                        f"\n  Note: no page-level results for this rule — "
+                        f"text_page_results: {text_diag} | visual_page_results: {vis_diag}"
+                    )
+            pytest.fail(
+                f"Case '{case_id}' / Rule '{rule_id}' / Pages {sorted(pages_filter)}\n"
+                f"  expected: {expected_verdict}\n"
+                f"  got:      {actual_verdict}"
+                f"{hint}\n"
+                f"\nPage breakdown:\n{page_lines}"
+            )
     else:
-        assert actual["verdict"] == expected_verdict, (
-            f"Case '{case_id}' / Rule '{rule_id}': "
-            f"expected verdict '{expected_verdict}', got '{actual['verdict']}'\n"
-            f"Summary: {actual.get('summary', '')}\n"
-            f"Findings: {actual.get('findings', [])}"
-        )
+        if actual["verdict"] != expected_verdict:
+            pytest.fail(
+                f"Case '{case_id}' / Rule '{rule_id}'\n"
+                f"  expected: {expected_verdict}\n"
+                f"  got:      {actual['verdict']}\n"
+                f"\nSummary: {actual.get('summary', '')}\n"
+                f"\nFindings: {actual.get('findings', [])}"
+            )
 
     if expected_pages is not None:
         assert sorted(actual.get("matched_pages") or []) == sorted(expected_pages), (

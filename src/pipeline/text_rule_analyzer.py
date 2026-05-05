@@ -265,7 +265,7 @@ class TextRuleAnalyzer:
                 citations = raw_result.get("citations", [])
                 return {
                     "page": page_number,
-                    "rule_id": raw_result.get("rule_id", rule_id),
+                    "rule_id": rule_id,
                     "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
                     "analysis_type": "text",
                     "execution_status": "completed",
