@@ -89,7 +89,7 @@ cases:
     expected:
       - rule_id: FMT-DOUBLE-UNDERLINE
         verdict: pass
-        pages: [1, 7, 9, 11]
+        pages: [7, 9, 11]
       - rule_id: FMT-DOUBLE-UNDERLINE
         verdict: fail
-        pages: [2, 3, 4, 5, 6, 8, 10, 12]
+        pages: [1, 2, 3, 4, 5, 6, 8, 10, 12]

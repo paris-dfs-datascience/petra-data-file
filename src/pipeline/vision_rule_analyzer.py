@@ -221,7 +221,7 @@ class VisionRuleAnalyzer:
                 logger.info("LLM call done: type=vision rule=%s page=%d elapsed=%s", rule_id, page_number, timedelta(seconds=time.perf_counter() - _t0))
                 return {
                     "page": page_number,
-                    "rule_id": raw_result.get("rule_id", rule_id),
+                    "rule_id": rule_id,
                     "rule_name": raw_result.get("rule_name", rule.get("name", rule_id)),
                     "analysis_type": "vision",
                     "execution_status": "completed",
