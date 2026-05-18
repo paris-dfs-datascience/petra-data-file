@@ -11,6 +11,20 @@ _RULES_FILE = _REPO_ROOT / "rules" / "rules.json"
 _CASES_FILE = Path(__file__).parent / "cases.yaml"
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--rule",
+        action="append",
+        dest="rules",
+        metavar="RULE_ID",
+        default=None,
+        help=(
+            "Only run assertions for this rule ID (repeatable: --rule A --rule B). "
+            "Skips pipeline invocations for cases with no assertions for the selected rules."
+        ),
+    )
+
+
 def _load_cases() -> list[dict]:
     data = yaml.safe_load(_CASES_FILE.read_text())
     return (data or {}).get("cases") or []
@@ -21,12 +35,16 @@ def _load_all_rules() -> dict[str, dict]:
 
 
 @pytest.fixture(scope="session")
-def pipeline_results() -> dict[str, dict]:
+def pipeline_results(request) -> dict[str, dict]:
     """Run the validation pipeline once per test case and cache results for the session.
 
     Only cases that have an `expected` block are executed — discovery runs
     (cases without expected entries) are handled by the separate
     scripts/update_integration_expectations.py script.
+
+    Pass --rule RULE_ID (repeatable) to restrict execution to cases that
+    assert on the given rule(s). Only the selected rules are sent to the
+    pipeline, reducing API cost proportionally.
 
     Results are keyed by case ID. A result dict with an `__error__` key
     indicates a setup problem (missing document, unknown rule ID) rather
@@ -34,7 +52,16 @@ def pipeline_results() -> dict[str, dict]:
     """
     from src.services.validation_service import ValidationService
 
+    rule_filter = set(request.config.getoption("rules") or [])
     cases = [c for c in _load_cases() if c.get("expected")]
+
+    # Drop entire cases that have no expected assertions for the filtered rules
+    if rule_filter:
+        cases = [
+            c for c in cases
+            if any(e["rule_id"] in rule_filter for e in c.get("expected", []))
+        ]
+
     if not cases:
         return {}
 
@@ -51,6 +78,10 @@ def pipeline_results() -> dict[str, dict]:
             continue
 
         rule_ids: list[str] = case.get("rules") or []
+        # Pass only the filtered rules to validate_document — saves API cost
+        if rule_filter:
+            rule_ids = [rid for rid in rule_ids if rid in rule_filter]
+
         unknown = [rid for rid in rule_ids if rid not in all_rules]
         if unknown:
             results[case_id] = {"__error__": f"Unknown rule IDs in cases.yaml: {unknown}"}
