@@ -23,6 +23,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
             "Skips pipeline invocations for cases with no assertions for the selected rules."
         ),
     )
+    parser.addoption(
+        "--case",
+        action="append",
+        dest="cases",
+        metavar="CASE_ID",
+        default=None,
+        help="Only run pipeline for this case ID (repeatable: --case A --case B).",
+    )
 
 
 def _load_cases() -> list[dict]:
@@ -53,7 +61,11 @@ def pipeline_results(request) -> dict[str, dict]:
     from src.services.validation_service import ValidationService
 
     rule_filter = set(request.config.getoption("rules") or [])
+    case_filter = set(request.config.getoption("cases") or [])
     cases = [c for c in _load_cases() if c.get("expected")]
+
+    if case_filter:
+        cases = [c for c in cases if c["id"] in case_filter]
 
     # Drop entire cases that have no expected assertions for the filtered rules
     if rule_filter:
